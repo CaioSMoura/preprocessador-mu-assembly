@@ -167,41 +167,112 @@ static const char *REGS_VALIDOS[] = {
     NULL
 };
 
-}
 
 void afdIdentificador(Scanner *s, int primeiro, Token *t){
+    char lexema[MAX_LEXEMA];
+    int i = 0;
+    
+    lexema[i++] = (char)primeiro;
+    int c = scannerLer(s);
+    
+    while (isalnum((unsigned char)c) || c == '_') {
+        if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+        c = scannerLer(s);
+    }
+    scannerDevolver(s, c); 
+    lexema[i] = '\0';
 
-    char lex[2];
+    char nomeToken[MAX_NOME];
+    char categoria[MAX_CATEGORIA];
+    strcpy(categoria, CAT_ID); 
 
-    lex[0] = (char)primeiro;
-    lex[1] = '\0';
-
-    montarToken(t, "TODO_ID", lex, s);
-
+   
+    if (tsBuscar(lexema, categoria, nomeToken) == 1) {
+       
+        montarToken(t, nomeToken, lexema, s);
+    } else {
+       
+        tsInserir(lexema, CAT_ID, s->tokenLinha, s->tokenColuna);
+        montarToken(t, TK_ID, lexema, s);
+    }
 }
 
 void afdDiretiva(Scanner *s, int primeiro, Token *t){
+    char lexema[MAX_LEXEMA];
+    int i = 0;
+    
+    lexema[i++] = (char)primeiro; 
+    int c = scannerLer(s);
+    
+    while (isalpha((unsigned char)c)) {
+        if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+        c = scannerLer(s);
+    }
+    scannerDevolver(s, c);
+    lexema[i] = '\0';
 
-    char lex[2];
+    char nomeToken[MAX_NOME];
+    char categoria[MAX_CATEGORIA];
+    strcpy(categoria, CAT_DIRETIVA);
 
-    lex[0] = (char)primeiro;
-    lex[1] = '\0';
-
-    montarToken(t, "TODO_DIR", lex, s);
-
+    
+    if (tsBuscar(lexema, categoria, nomeToken) == 1) {
+        montarToken(t, nomeToken, lexema, s);
+    } else {
+        
+        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lexema, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema, s);
+    }
 }
 
 void afdString(Scanner *s, int primeiro, Token *t){
-
-    char lex[2];
-
-    lex[0] = (char)primeiro;
-    lex[1] = '\0';
-
-
-    montarToken(t, "TODO_STRING", lex, s);
-
+    char lexema[MAX_LEXEMA];
+    int i = 0;
+    int escape_invalido = 0;
+    
+    lexema[i++] = (char)primeiro; 
+    int c = scannerLer(s);
+    
+    while (c != '"' && c != '\n' && c != EOF) {
+        if (c == '\\') {
+            if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+            c = scannerLer(s);
+            // Valida as 5 sequências de escape exigidas
+            if (c == 'n' || c == 't' || c == '\\' || c == '"' || c == '0') {
+                if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+            } else {
+                escape_invalido = 1;
+                if (c != EOF && c != '\n' && i < MAX_LEXEMA - 1) {
+                    lexema[i++] = (char)c;
+                }
+            }
+        } else {
+            if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+        }
+        c = scannerLer(s);
+    }
+    
+   
+    if (c == '\n' || c == EOF) {
+        scannerDevolver(s, c);
+        lexema[i] = '\0';
+        erroRegistrar("ERRO_CADEIA_NAO_FECHADA", lexema, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema, s);
+    } 
+    
+    else if (escape_invalido) {
+        if (i < MAX_LEXEMA - 1) lexema[i++] = '"';
+        lexema[i] = '\0';
+        erroRegistrar("ERRO_ESCAPE_INVALIDO", lexema, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema, s);
+    } 
+    else { 
+        if (i < MAX_LEXEMA - 1) lexema[i++] = '"';
+        lexema[i] = '\0';
+        montarToken(t, "TK_CADEIA", lexema, s);
+    }
 }
+
 
 void afdRegistrador(Scanner *s, int primeiro, Token *t){
     char buffer[MAX_LEXEMA];
