@@ -444,10 +444,7 @@ void afdSimbolo(Scanner *s, int primeiro, Token *t){
 
 #define TAM(v) (sizeof(v) / sizeof((v)[0]))
 
-/* --------------------------------------------------------------------------
- *  Palavras reservadas
- * -------------------------------------------------------------------------- */
-
+//   Palavras reservadas
 static const char *const INSTRUCOES[] = {
     /* aritmetica */
     "add", "addu", "addi", "sub", "subu", "mul", "div",
@@ -480,19 +477,14 @@ static const char *const REGISTRADORES[] = {
     "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"
 };
 
-/* --------------------------------------------------------------------------
- *  Estado da tabela
- * -------------------------------------------------------------------------- */
-
+//   Estado da tabela
 static Simbolo tabela[MAX_SIMBOLOS];
 static int total = 0;
 static int totalReservadas = 0;
 
-/* --------------------------------------------------------------------------
- *  Auxiliares internas
- * -------------------------------------------------------------------------- */
 
-/* Copia origem -> destino em minusculas (no maximo tam-1 caracteres). */
+//   Auxiliares internas
+// Copia origem -> destino em minusculas (no maximo tam-1 caracteres). 
 static void minusculas(const char *origem, char *destino, size_t tam){
 
     size_t i;
@@ -544,7 +536,7 @@ static void nomeDoToken(const Simbolo *s, char *nomeToken){
     nomeToken[j] = '\0';
 }
 
-/* Procura nas palavras reservadas (o argumento ja deve estar em minusculas). */
+// Procura nas palavras reservadas (o argumento ja deve estar em minusculas). 
 static int indiceReservada(const char *minuscula){
 
     int i;
@@ -563,7 +555,7 @@ static int indiceReservada(const char *minuscula){
 
 }
 
-/* Procura correspondencia exata (case-sensitive) nos simbolos inseridos. */
+// Procura correspondencia exata (case-sensitive) nos simbolos inseridos. 
 static int indiceExato(const char *lexema){
 
     int i;
@@ -582,7 +574,7 @@ static int indiceExato(const char *lexema){
 
 }
 
-/* Acrescenta uma entrada ao fim da tabela. Retorna 1 se coube, 0 se cheia. */
+// Acrescenta uma entrada ao fim da tabela. Retorna 1 se coube, 0 se cheia. 
 static int adicionar(const char *lexema, const char *categoria, int linha, int coluna){
 
     Simbolo *s;
@@ -623,7 +615,7 @@ static void carregar(const char *const *lista, size_t n, const char *categoria){
 
 }
 
-/* Escreve um campo CSV, com aspas se tiver virgula, aspas ou quebra de linha. */
+// Escreve um campo CSV, com aspas se tiver virgula, aspas ou quebra de linha. 
 static void gravarCampoCSV(FILE *out, const char *campo){
 
     const char *p;
@@ -654,11 +646,8 @@ static void gravarCampoCSV(FILE *out, const char *campo){
 
 }
 
-/* --------------------------------------------------------------------------
- *  Interface publica (declarada em lexico.h)
- * -------------------------------------------------------------------------- */
-
-/* Zera a tabela e carrega as palavras reservadas. Pode ser chamada varias vezes. */
+//   Interface publica (declarada em lexico.h)
+// Zera a tabela e carrega as palavras reservadas. Pode ser chamada varias vezes. 
 void tsInicializar(void){
 
     total = 0;
@@ -672,16 +661,16 @@ void tsInicializar(void){
 }
 
 /*
- * Consulta um lexema.
- *   - Palavras reservadas: comparacao sem distinguir maiusculas/minusculas.
- *   - Demais simbolos (rotulos): comparacao exata.
- *
- * Retorna 1 se encontrou, 0 caso contrario.
- * Se encontrou, preenche (quando nao forem NULL):
- *   categoria : "INSTRUCAO", "DIRETIVA", "REGISTRADOR" ou "ID"
- *               (buffer com pelo menos MAX_CATEGORIA bytes)
- *   nomeToken : "TK_INSTRUCAO", "DIR", "REG" ou "ID"
- *               (buffer com pelo menos MAX_NOME bytes)
+  Consulta um lexema.
+    - Palavras reservadas: comparacao sem distinguir maiusculas/minusculas.
+    - Demais simbolos (rotulos): comparacao exata.
+ 
+  Retorna 1 se encontrou, 0 caso contrario.
+  Se encontrou, preenche (quando nao forem NULL):
+    categoria : "INSTRUCAO", "DIRETIVA", "REGISTRADOR" ou "ID"
+                (buffer com pelo menos MAX_CATEGORIA bytes)
+    nomeToken : "TK_INSTRUCAO", "DIR", "REG" ou "ID"
+                (buffer com pelo menos MAX_NOME bytes)
  */
 int tsBuscar(const char *lexema, char *categoria, char *nomeToken, int linha, int coluna){
 
@@ -721,9 +710,9 @@ int tsBuscar(const char *lexema, char *categoria, char *nomeToken, int linha, in
 }
 
 /*
- * Insere um simbolo (normalmente CAT_ID) com a posicao da primeira ocorrencia.
- * Duplicatas sao bloqueadas: se o lexema ja existe, ou se colide com uma
- * palavra reservada (ex.: um rotulo chamado "ADD"), nada e feito.
+  - Insere um simbolo (normalmente CAT_ID) com a posicao da primeira ocorrencia.
+  - Duplicatas sao bloqueadas: se o lexema ja existe, ou se colide com uma
+    palavra reservada (ex.: um rotulo chamado "ADD"), nada e feito.
  */
 void tsInserir(const char *lexema, const char *categoria, int linha, int coluna){
 
@@ -744,7 +733,7 @@ void tsInserir(const char *lexema, const char *categoria, int linha, int coluna)
 
     }
 
-    /* Categorias reservadas sao normalizadas; rotulos preservam a caixa. */
+    // Categorias reservadas sao normalizadas; rotulos preservam a caixa. 
     if (categoriaReservada(categoria)) {
 
         snprintf(normalizado, MAX_LEXEMA, "%s", minuscula);
@@ -765,7 +754,7 @@ void tsInserir(const char *lexema, const char *categoria, int linha, int coluna)
 
 }
 
-/* Grava a tabela inteira em CSV: LEXEMA,CATEGORIA,LINHA,COLUNA. */
+// Grava a tabela inteira em CSV: LEXEMA,CATEGORIA,LINHA,COLUNA.
 void tsGravar(FILE *out){
 
     int i;
