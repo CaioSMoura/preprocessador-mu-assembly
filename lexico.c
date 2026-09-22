@@ -190,13 +190,21 @@ void afdIdentificador(Scanner *s, int primeiro, Token *t){
         (c == '.') || (c == '$') || (c == '"');
     
     if (!delimitadorValido) {
-        
+    while (!delimitadorValido) {                  
         if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
-        lexema[i] = '\0';
-        erroRegistrar("ERRO_IDENTIFICADOR_MALFORMADO", lexema, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lexema, s);
-        return;
+        c = scannerLer(s);
+        delimitadorValido =                
+            (c == EOF) || (c == ' ') || (c == '\t') || (c == '\n') || (c == '\r') ||
+            (c == ',') || (c == ':') || (c == '(') || (c == ')') ||
+            (c == '.') || (c == '$') || (c == '"');
     }
+    
+    scannerDevolver(s, c);
+    lexema[i] = '\0';
+    erroRegistrar("ERRO_IDENTIFICADOR_MALFORMADO", lexema, s->tokenLinha, s->tokenColuna);
+    montarToken(t, "TK_ERRO", lexema, s);
+    return;
+}
 
     scannerDevolver(s, c); 
     lexema[i] = '\0';
@@ -275,7 +283,7 @@ void afdString(Scanner *s, int primeiro, Token *t){
     if (c == '\n' || c == EOF) {
         scannerDevolver(s, c);
         lexema[i] = '\0';
-        erroRegistrar("ERRO_CADEIA_NAO_FECHADA", lexema, s->tokenLinha, s->tokenColuna);
+        erroRegistrar("ERRO_STRING_NAO_FECHADA", lexema, s->tokenLinha, s->tokenColuna);
         montarToken(t, "TK_ERRO", lexema, s);
     } 
     
@@ -368,11 +376,19 @@ void afdNumero(Scanner *s, int primeiro, Token *t){
         buffer[pos] = '\0';
 
         if (!temHex) {
+            while (isalnum((unsigned char)c) || c == '_') {
+                if (pos < MAX_LEXEMA - 1) buffer[pos++] = (char)c;
+                c = scannerLer(s);
+            }
+            scannerDevolver(s, c);
+            buffer[pos] = '\0';
             erroRegistrar("ERRO_NUMERO_INVALIDO", buffer, s->tokenLinha, s->tokenColuna);
             montarToken(t, "TK_ERRO", buffer, s);
             return;
-        }
-
+         }
+        
+        scannerDevolver(s, c);
+        buffer[pos] = '\0';
         montarToken(t, "NUM_INT", buffer, s);
         return;
     }

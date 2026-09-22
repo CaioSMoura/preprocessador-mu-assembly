@@ -12,18 +12,6 @@
 //  - Estados coloridos (q1, q3, q7) consultam a Tabela de Simbolos com
 //    tsBuscar() antes de emitir o token.
 //  - Espacos, tabs e quebras de linha em q0 sao ignorados (laco em q0).
-//
-//  Atualizado para bater com a implementacao atual de lexico.c:
-//  - q1: se o caractere seguinte ao identificador nao for um delimitador
-//    valido (espaco/EOF/, : ( ) . $ "), o lexema e registrado como
-//    ERRO_IDENTIFICADOR_MALFORMADO (cobre exemplos como "soma-total" e
-//    "inicio@" do enunciado).
-//  - q9: se, apos os digitos de um numero decimal, vier uma letra ou "_"
-//    colada (ex.: "2valor"), o lexema tambem e registrado como
-//    ERRO_IDENTIFICADOR_MALFORMADO (e nao mais como numero invalido).
-//  - q7: registradores nomeados (ex.: $t0, $sp) agora sao validados via
-//    tsBuscar() na Tabela de Simbolos, igual q1 e q3; a forma numerica
-//    ($0 a $31) continua validada diretamente (strtol), sem consultar a TS.
 // ============================================================================
 
 digraph AFD_uAssembly {
