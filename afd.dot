@@ -75,7 +75,7 @@ digraph AFD_uAssembly {
     q4   -> qEsc [label="\\"];
     qEsc -> q4   [label="n  t  \\  \"  0"];
     qEsc -> qErr [label="outro\nERRO_ESCAPE_INVALIDO", style=dashed];
-    qEsc -> qErr [label="\\n: ERRO_STRING_NAO_FECHADA\nEOF: ERRO_STRING_NAO_FECHADA_EOF", style=dashed];
+    qEsc -> qErr [label="\\n ou EOF\nERRO_STRING_NAO_FECHADA", style=dashed];
 
     // ---- registrador -----------------------------------------------------
     q6 [label="q6"];
@@ -114,8 +114,7 @@ digraph AFD_uAssembly {
     qErr [label="q_erro\nerro lexico", shape=doublecircle, style="filled,dashed", fillcolor="#fecaca"];
     q0  -> qErr [label="outro caractere\nERRO_CARACTERE_INVALIDO", style=dashed];
     q2  -> qErr [label="outro\nERRO_DIRETIVA_INVALIDA", style=dashed];
-    q4  -> qErr [label="\\n\nERRO_STRING_NAO_FECHADA", style=dashed];
-    q4  -> qErr [label="EOF\nERRO_STRING_NAO_FECHADA_EOF", style=dashed];
+    q4  -> qErr [label="\\n ou EOF\nERRO_STRING_NAO_FECHADA", style=dashed];
     q6  -> qErr [label="outro\nERRO_REGISTRADOR_INVALIDO", style=dashed];
     q8  -> qErr [label="outro ('-' isolado)\nERRO_CARACTERE_INVALIDO", style=dashed];
     q11 -> qErr [label="outro\nERRO_NUMERO_INVALIDO", style=dashed];

@@ -24,10 +24,10 @@ void remover_comentario(char *linha){
     int dentro_string = 0;
     
     for (int i = 0; linha[i] != '\0'; i++) {
-        if (dentro_string && linha[i] == '\\' && linha[i + 1] != '\0') {   
-            i++;                                                           
-            continue;                                               
-        }  
+        if (dentro_string && linha[i] == '\\' && linha[i + 1] != '\0') {
+            i++;
+            continue;
+        }
         if (linha[i] == '"') {
             dentro_string = !dentro_string;
         } else if (linha[i] == '#' && !dentro_string) {
@@ -52,16 +52,16 @@ void normalizar_espacos_mapa(char *linha, int *cols){
 
     // 2. Percorre a linha caractere por caractere
     while (linha[i] != '\0' && linha[i] != '\n' && linha[i] != '\r') {
-        if (dentro_string && linha[i] == '\\' && linha[i + 1] != '\0') {    
-            if (cols) cols[j] = i + 1;                                         
-            linha[j++] = linha[i++];                                           
-            if (cols) cols[j] = i + 1;                                         
-            linha[j++] = linha[i++];                                           
-            continue;                                                        
+        if (dentro_string && linha[i] == '\\' && linha[i + 1] != '\0') {
+            if (cols) cols[j] = i + 1;
+            linha[j++] = linha[i++];
+            if (cols) cols[j] = i + 1;
+            linha[j++] = linha[i++];
+            continue;
         }
         if (linha[i] == '"') {
             if (espaco_pendente && j > 0) {
-                if (cols) cols[j] = i;      
+                if (cols) cols[j] = i;
                 linha[j++] = ' ';
                 espaco_pendente = 0;
             }
@@ -80,7 +80,7 @@ void normalizar_espacos_mapa(char *linha, int *cols){
                 }
             } else {
                 if (espaco_pendente) {
-                    if (cols) cols[j] = i;     
+                    if (cols) cols[j] = i;
                     linha[j++] = ' ';
                     espaco_pendente = 0;
                 }
@@ -197,29 +197,29 @@ void preMapearEOF(int *linhaOrig, int *colunaOrig){
 int preprocessar(FILE *entrada, FILE * saida){
 
     char linha[MAX_LINHA];
-    int cols[MAX_LINHA];         
+    int cols[MAX_LINHA];
     int gravadas = 0;
-    int linhaOrig = 0;                 
+    int linhaOrig = 0;
 
-    preLiberarMapa();                   
+    preLiberarMapa();
 
     while (fgets(linha, MAX_LINHA, entrada) != NULL){
 
-        linhaOrig++;                         
+        linhaOrig++;
 
         remover_quebra_linha(linha);
         remover_comentario(linha);
-        normalizar_espacos_mapa(linha, cols);  
+        normalizar_espacos_mapa(linha, cols);
 
         if(!linha_vazia(linha)){
             fprintf(saida, "%s\n", linha);
-            mapaAdicionar(linhaOrig, linha, cols);  
+            mapaAdicionar(linhaOrig, linha, cols);
             gravadas++;
         }
     }
 
-    totalLinhasOrig = linhaOrig;                
-    mapaAtivo = 1;                              
+    totalLinhasOrig = linhaOrig;
+    mapaAtivo = 1;
 
     return gravadas;
 }

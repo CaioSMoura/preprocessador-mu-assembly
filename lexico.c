@@ -84,7 +84,7 @@ Token proximoToken(Scanner *s){
             s->tokenColuna = 1;
         }
 
-        preMapearEOF(&s->tokenLinha, &s->tokenColuna); 
+        preMapearEOF(&s->tokenLinha, &s->tokenColuna);
 
         montarToken(&t, "TK_EOF", "EOF", s);
         
@@ -157,8 +157,6 @@ void erroRegistrar(const char *tipo, const char *lexema, int linha, int coluna){
         listaErros[qtdErros].coluna = coluna;
         qtdErros++;
     }
-
-    (void)tipo; (void)lexema; (void)linha; (void)coluna;
 
 }
 
@@ -282,9 +280,9 @@ void afdString(Scanner *s, int primeiro, Token *t){
             if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
             c = scannerLer(s);
 
-            if (c == '\n' || c == EOF) {                                
-                break;                                                 
-            }   
+            if (c == '\n' || c == EOF) {
+                break;
+            }
             // Valida as 5 sequências de escape exigidas
             if (c == 'n' || c == 't' || c == '\\' || c == '"' || c == '0') {
                 if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
@@ -394,8 +392,8 @@ void afdNumero(Scanner *s, int primeiro, Token *t){
             c = scannerLer(s);
         }
 
-        if (!temHex || isalnum((unsigned char)c) || c == '_') {
-            while (isalnum((unsigned char)c) || c == '_') {
+        if (!temHex || isalnum((unsigned char)c) || c == '_' || c == '.') {
+            while (isalnum((unsigned char)c) || c == '_' || c == '.') {
                 if (pos < MAX_LEXEMA - 1) buffer[pos++] = (char)c;
                 c = scannerLer(s);
             }
@@ -416,6 +414,18 @@ void afdNumero(Scanner *s, int primeiro, Token *t){
     while (isdigit((unsigned char)c)) {
         if (pos < MAX_LEXEMA - 1) buffer[pos++] = (char)c;
         c = scannerLer(s);
+    }
+
+    if (c == '.') {
+        while (isalnum((unsigned char)c) || c == '_' || c == '.') {
+            if (pos < MAX_LEXEMA - 1) buffer[pos++] = (char)c;
+            c = scannerLer(s);
+        }
+        scannerDevolver(s, c);
+        buffer[pos] = '\0';
+        erroRegistrar("ERRO_NUMERO_INVALIDO", buffer, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", buffer, s);
+        return;
     }
 
     // Se tiver letras coladas nos dígitos (ex: 10abc) -> número mal formatado
