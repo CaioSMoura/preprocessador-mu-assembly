@@ -124,3 +124,9 @@ int preprocessar(FILE *entrada, FILE * saida){
     
     return gravadas;
 }
+
+void PreProcessamento(FILE *entrada, FILE *saida){
+
+    preprocessar(entrada, saida);
+
+}

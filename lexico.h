@@ -18,8 +18,8 @@
 /* Nomes de token devolvidos por tsBuscar() em "nomeToken" */
 #define TK_INSTRUCAO    "TK_INSTRUCAO"
 #define TK_DIRETIVA     "TK_DIRETIVA"
-#define TK_REGISTRADOR  "TK_REGISTRADOR"
-#define TK_ID           "TK_ID"
+#define TK_REGISTRADOR  "REG"
+#define TK_ID           "ID"
 
 typedef struct {
 
@@ -63,7 +63,7 @@ Token proximoToken(Scanner *s);
 void AnaliseLexica(FILE *in, FILE *out);
 
 void tsInicializar(void);
-int tsBuscar(const char *lexema, char *categoria, char *nomeToken);
+int tsBuscar(const char *lexema, char *categoria, char *nomeToken, int linha, int coluna);
 void tsInserir(const char *lexema, const char *categoria, int linha, int coluna);
 void tsGravar(FILE *out);
 

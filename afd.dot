@@ -1,9 +1,8 @@
 // ============================================================================
-//  afd.dot - AFD do analisador lexico do uAssembly (Membro 2)
+//  afd.dot - AFD do analisador lexico do uAssembly
 //
 //  Gerar imagem:
 //      dot -Tpng afd.dot -o afd.png
-//      dot -Tsvg afd.dot -o afd.svg
 //
 //  Convencoes
 //  ----------
@@ -13,6 +12,18 @@
 //  - Estados coloridos (q1, q3, q7) consultam a Tabela de Simbolos com
 //    tsBuscar() antes de emitir o token.
 //  - Espacos, tabs e quebras de linha em q0 sao ignorados (laco em q0).
+//
+//  Atualizado para bater com a implementacao atual de lexico.c:
+//  - q1: se o caractere seguinte ao identificador nao for um delimitador
+//    valido (espaco/EOF/, : ( ) . $ "), o lexema e registrado como
+//    ERRO_IDENTIFICADOR_MALFORMADO (cobre exemplos como "soma-total" e
+//    "inicio@" do enunciado).
+//  - q9: se, apos os digitos de um numero decimal, vier uma letra ou "_"
+//    colada (ex.: "2valor"), o lexema tambem e registrado como
+//    ERRO_IDENTIFICADOR_MALFORMADO (e nao mais como numero invalido).
+//  - q7: registradores nomeados (ex.: $t0, $sp) agora sao validados via
+//    tsBuscar() na Tabela de Simbolos, igual q1 e q3; a forma numerica
+//    ($0 a $31) continua validada diretamente (strtol), sem consultar a TS.
 // ============================================================================
 
 digraph AFD_uAssembly {
@@ -43,6 +54,7 @@ digraph AFD_uAssembly {
     q1 [label="q1\nID ou\nreservada", shape=doublecircle, fillcolor="#bfdbfe"];
     q0 -> q1 [label="[A-Za-z_]"];
     q1 -> q1 [label="[A-Za-z0-9_]"];
+    q1 -> qErr [label="outro caractere\n(nao e delimitador)\nERRO_IDENTIFICADOR\n_MALFORMADO", style=dashed];
 
     // ---- diretiva --------------------------------------------------------
     q2 [label="q2"];
@@ -81,6 +93,7 @@ digraph AFD_uAssembly {
     q10 -> q11 [label="x, X"];
     q11 -> q12 [label="[0-9A-Fa-f]"];
     q12 -> q12 [label="[0-9A-Fa-f]"];
+    q9  -> qErr [label="letra ou _ colada\nERRO_IDENTIFICADOR\n_MALFORMADO", style=dashed];
 
     // ---- simbolos de pontuacao ------------------------------------------
     q13 [label="q13\nSIMBOLO", shape=doublecircle, fillcolor="#ddd6fe"];
@@ -97,7 +110,7 @@ digraph AFD_uAssembly {
 
     // ---- ligacao com a Tabela de Simbolos --------------------------------
     ts [shape=note, fillcolor="#fef9c3", fontsize=10,
-        label="Tabela de Simbolos\ntsBuscar(lexema)\n\nq1: INSTRUCAO -> TK_INSTRUCAO\n     ja inserido    -> TK_ID\n     novo           -> tsInserir + TK_ID\nq3: DIRETIVA valida ou erro\nq7: REGISTRADOR valido ou erro"];
+        label="Tabela de Simbolos\ntsBuscar(lexema)\n\nq1: INSTRUCAO -> TK_INSTRUCAO\n     ja inserido    -> TK_ID\n     novo           -> tsInserir + TK_ID\nq3: DIRETIVA valida ou erro\nq7: nomeado ($t0, $sp, ...) -> tsBuscar\n     numerico ($0-$31)    -> validado direto (strtol)"];
     q1 -> ts [style=dotted, arrowhead=none];
     q3 -> ts [style=dotted, arrowhead=none];
     q7 -> ts [style=dotted, arrowhead=none];

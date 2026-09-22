@@ -15,4 +15,6 @@ int linha_vazia(const char *linha);
 
 int preprocessar(FILE *entrada, FILE *saida);
 
+void PreProcessamento(FILE *entrada, FILE *saida);
+
 #endif
