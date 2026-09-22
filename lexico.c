@@ -190,7 +190,7 @@ void afdIdentificador(Scanner *s, int primeiro, Token *t){
         (c == '.') || (c == '$') || (c == '"');
     
     if (!delimitadorValido) {
-        /* Caractere colado sem separador -> identificador malformado */
+        
         if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
         lexema[i] = '\0';
         erroRegistrar("ERRO_IDENTIFICADOR_MALFORMADO", lexema, s->tokenLinha, s->tokenColuna);
@@ -436,17 +436,17 @@ void afdSimbolo(Scanner *s, int primeiro, Token *t){
 
 static const char *const INSTRUCOES[] = {
     /* aritmetica */
-    "add", "addu", "addi", "addiu", "sub", "subu", "mul", "div",
+    "add", "addu", "addi", "sub", "subu", "mul", "div",
     /* logicas */
-    "and", "andi", "or", "ori", "xor", "xori", "nor",
+    "and", "or", "xor", "nor",
     /* deslocamento */
-    "sll", "srl", "sra",
+    "sll", "srl",
     /* comparacao */
-    "slt", "slti", "sltu", "sltiu",
+    "slt",
     /* memoria */
     "lw", "sw", "lb", "sb", "lh", "sh",
     /* carga de constantes / enderecos / copia */
-    "lui", "li", "la", "move", "mfhi", "mflo",
+    "li", "la", "move", "mfhi", "mflo",
     /* desvios e saltos */
     "beq", "bne", "blt", "bgt", "ble", "bge", "j", "jal", "jr",
     /* sistema */

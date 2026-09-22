@@ -6,7 +6,7 @@ lista:  .word 1, 2, 3, 4
 
 .text
 main:
-    lui $s0, 0x1001
+    li $s0, 0x1001
     and $s1, $s0, $s0
     or  $s2, $s0, $s1
     xor $s3, $s1, $s2
