@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h> 
-#include "lexico.h"
 #include <stdlib.h>
+#include "lexico.h"
+#include "preprocessador.h"
+
 
 typedef struct {
     char tipo[MAX_CATEGORIA];
@@ -82,11 +84,15 @@ Token proximoToken(Scanner *s){
             s->tokenColuna = 1;
         }
 
+        preMapearEOF(&s->tokenLinha, &s->tokenColuna); 
+
         montarToken(&t, "TK_EOF", "EOF", s);
         
         return t;
 
     }
+
+    preMapear(s->linha, s->coluna, &s->tokenLinha, &s->tokenColuna);
 
     if(isalpha((unsigned char)c) || c == '_'){
 
@@ -235,6 +241,17 @@ void afdDiretiva(Scanner *s, int primeiro, Token *t){
         if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
         c = scannerLer(s);
     }
+    if (isdigit((unsigned char)c) || c == '_') {
+        while (isalnum((unsigned char)c) || c == '_') {
+            if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
+            c = scannerLer(s);
+        }
+        scannerDevolver(s, c);
+        lexema[i] = '\0';
+        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lexema, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema, s);
+        return;
+    }
     scannerDevolver(s, c);
     lexema[i] = '\0';
 
@@ -264,6 +281,10 @@ void afdString(Scanner *s, int primeiro, Token *t){
         if (c == '\\') {
             if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;
             c = scannerLer(s);
+
+            if (c == '\n' || c == EOF) {                                
+                break;                                                 
+            }   
             // Valida as 5 sequências de escape exigidas
             if (c == 'n' || c == 't' || c == '\\' || c == '"' || c == '0') {
                 if (i < MAX_LEXEMA - 1) lexema[i++] = (char)c;

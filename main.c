@@ -10,6 +10,18 @@
 
 #define MAX_CAMINHO 512
 
+static int copiar_caminho(char *destino, const char *origem)
+{
+    if (strlen(origem) >= MAX_CAMINHO) {
+        fprintf(stderr, "ERRO: Caminho muito longo (maximo %d caracteres): \"%s\".\n",
+                MAX_CAMINHO - 1, origem);
+        return 0;
+    }
+
+    strcpy(destino, origem);
+    return 1;
+}
+
 static void trocar_extensao(const char *origem, const char *ext, char *destino)
 {
     const char *ponto = strrchr(origem, '.');
@@ -146,6 +158,8 @@ int main(int argc, char *argv[]){
 
     errosGravar(saida);
     fclose(saida);
+
+    preLiberarMapa();
 
     printf("Processamento concluido.\n");
     printf("Entrada: %s\n", nome_entrada);
