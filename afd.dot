@@ -38,6 +38,17 @@ digraph AFD_uAssembly {
     qEOF [label="q_eof\nTK_EOF", shape=doublecircle, fillcolor="#e5e7eb"];
     q0 -> qEOF [label="EOF"];
 
+    // ---- comentario --------------------------------------------------------
+    qCom [label="q_com\n(comentario)", fillcolor="#f3f4f6"];
+    q0 -> qCom [label="#"];
+    qCom -> qCom [label="qualquer exceto\n\\n EOF"];
+    qCom -> q0 [label="\\n\n(sem token)"];
+    qCom -> qEOF [label="EOF"];
+
+    comNote [shape=note, fillcolor="#fef9c3", fontsize=9,
+        label="Neste projeto o comentario e\nconsumido no pre-processamento\n(preprocessador.c: remover_comentario),\nantes do arquivo chegar em lexico.c.\nEstado incluido aqui para representar\no caminho pedido no item 3 do enunciado."];
+    qCom -> comNote [style=dotted, arrowhead=none];
+
     // ---- identificador / instrucao / rotulo -----------------------------
     q1 [label="q1\nID ou\nreservada", shape=doublecircle, fillcolor="#bfdbfe"];
     q0 -> q1 [label="[A-Za-z_]"];

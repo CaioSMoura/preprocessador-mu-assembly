@@ -372,8 +372,6 @@ void afdNumero(Scanner *s, int primeiro, Token *t){
             if (pos < MAX_LEXEMA - 1) buffer[pos++] = (char)c;
             c = scannerLer(s);
         }
-        scannerDevolver(s, c);
-        buffer[pos] = '\0';
 
         if (!temHex) {
             while (isalnum((unsigned char)c) || c == '_') {
