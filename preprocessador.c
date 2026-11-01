@@ -132,7 +132,7 @@ static int mapaQtd = 0;
 static int mapaCap = 0;
 static int totalLinhasOrig = 0;
 static int mapaAtivo = 0;
-
+static int ultimaSemQuebra = 0;  
 void preLiberarMapa(void){
     for (int k = 0; k < mapaQtd; k++) {
         free(mapa[k].colOrig);
@@ -142,6 +142,7 @@ void preLiberarMapa(void){
     mapaQtd = mapaCap = 0;
     totalLinhasOrig = 0;
     mapaAtivo = 0;
+    ultimaSemQuebra = 0;
 }
 
 static void mapaAdicionar(int linhaOrig, const char *linha, const int *cols){
@@ -194,18 +195,91 @@ void preMapearEOF(int *linhaOrig, int *colunaOrig){
     *colunaOrig = 1;
 }
 
+int preLinhaTerminaNoEOF(int linhaPre){
+    if (!mapaAtivo || linhaPre < 1 || linhaPre > mapaQtd) return 0;
+
+    return ultimaSemQuebra && mapa[linhaPre - 1].linhaOrig == totalLinhasOrig;
+}
+
+static void semMemoria(void){
+    fprintf(stderr, "ERRO: memoria insuficiente durante o pre-processamento.\n");
+    exit(EXIT_FAILURE);
+}
+
+static long lerLinha(FILE *entrada, char **buf, size_t *cap, int *temQuebra){
+
+    size_t n = 0;
+    int leu = 0;
+    int c;
+
+    *temQuebra = 0;
+
+    while ((c = fgetc(entrada)) != EOF) {
+
+        leu = 1;
+
+        if (c == '\n') {
+            *temQuebra = 1;
+            break;
+        }
+
+        if (c == '\r') {
+            int prox = fgetc(entrada);
+            if (prox != '\n' && prox != EOF) {
+                ungetc(prox, entrada);
+            }
+            *temQuebra = 1;
+            break;
+        }
+
+        if (n + 1 >= *cap) {
+            size_t novaCap = (*cap == 0) ? 256 : *cap * 2;
+            char *novo = realloc(*buf, novaCap);
+            if (novo == NULL) semMemoria();
+            *buf = novo;
+            *cap = novaCap;
+        }
+
+        (*buf)[n++] = (char)c;
+    }
+
+    if (!leu) {
+        return -1;
+    }
+
+    if (*cap == 0) {
+        *buf = malloc(1);
+        if (*buf == NULL) semMemoria();
+        *cap = 1;
+    }
+
+    (*buf)[n] = '\0';
+    return (long)n;
+}
+
 int preprocessar(FILE *entrada, FILE * saida){
 
-    char linha[MAX_LINHA];
-    int cols[MAX_LINHA];
+    char *linha = NULL;
+    size_t capLinha = 0;
+    int *cols = NULL;
+    size_t capCols = 0;
     int gravadas = 0;
     int linhaOrig = 0;
+    int temQuebra = 1;
 
     preLiberarMapa();
 
-    while (fgets(linha, MAX_LINHA, entrada) != NULL){
+    while (lerLinha(entrada, &linha, &capLinha, &temQuebra) >= 0){
 
         linhaOrig++;
+        ultimaSemQuebra = !temQuebra;
+
+        if (capCols < capLinha) {
+            int *novo = realloc(cols, capLinha * sizeof(int));
+            if (novo == NULL) semMemoria();
+            cols = novo;
+            capCols = capLinha;
+        }
 
         remover_quebra_linha(linha);
         remover_comentario(linha);
@@ -217,6 +291,9 @@ int preprocessar(FILE *entrada, FILE * saida){
             gravadas++;
         }
     }
+
+    free(linha);
+    free(cols);
 
     totalLinhasOrig = linhaOrig;
     mapaAtivo = 1;

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "preprocessador.h"
 #include "lexico.h"
 
@@ -87,6 +88,8 @@ int main(int argc, char *argv[]){
     FILE *entrada = NULL;
     FILE *saida = NULL;
 
+    atexit(lexicoLiberar);   
+
     if(argc == 3){
 
         if (!copiar_caminho(nome_entrada, argv[1]) ||
@@ -120,7 +123,7 @@ int main(int argc, char *argv[]){
     }
 
 
-    entrada = fopen(nome_entrada, "r");
+    entrada = fopen(nome_entrada, "rb"); 
 
     if (entrada == NULL){
 

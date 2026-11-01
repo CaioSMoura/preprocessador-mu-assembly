@@ -2,14 +2,12 @@
 #define LEXICO_H
 
 #include <stdio.h>
-
 #define MAX_NOME 50
 #define MAX_LEXEMA 100
 #define MAX_CATEGORIA 30
-#define MAX_SIMBOLOS 300
-#define MAX_ERROS 500
+#define MAX_DEVOLVIDOS 16
 
-/* Categorias da Tabela de Simbolos (campo "categoria" de Simbolo) */
+/* Categorias da Tabela de Simbolos (campo "categoria" de Simbolo)*/
 #define CAT_INSTRUCAO   "INSTRUCAO"
 #define CAT_DIRETIVA    "DIRETIVA"
 #define CAT_REGISTRADOR "REGISTRADOR"
@@ -21,6 +19,7 @@
 #define TK_REGISTRADOR  "REG"
 #define TK_ID           "ID"
 
+
 typedef struct {
 
     char nome[MAX_NOME];
@@ -28,6 +27,8 @@ typedef struct {
 
     int linha;
     int coluna;
+
+    char *lexemaCompleto;  
 
 } Token;
 
@@ -39,6 +40,8 @@ typedef struct {
     int primeiraLinha;
     int primeiraColuna;
 
+    char *lexemaCompleto;
+
 } Simbolo;
 
 typedef struct {
@@ -48,7 +51,9 @@ typedef struct {
     int linha;
     int coluna;
     int tokenLinha;
-    int tokenColuna;   
+    int tokenColuna;
+    int devolvidos[MAX_DEVOLVIDOS];
+    int qtdDevolvidos;
 
 } Scanner;
 
@@ -57,6 +62,8 @@ int scannerLer(Scanner *s);
 void scannerDevolver(Scanner *s, int c);
 
 void montarToken(Token *t, const char *nome, const char *lexema, Scanner *s);
+
+void tokenLiberar(Token *t);
 
 Token proximoToken(Scanner *s);
 
@@ -69,6 +76,7 @@ void tsGravar(FILE *out);
 
 void erroRegistrar(const char *tipo, const char *lexema, int linha, int coluna);
 void errosGravar(FILE *out);
+void lexicoLiberar(void);
 
 void afdIdentificador(Scanner *s, int primeiro, Token *t);
 void afdDiretiva(Scanner *s, int primeiro, Token *t);

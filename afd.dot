@@ -8,10 +8,13 @@
 //  ----------
 //  - Circulo duplo = estado final (aceita o token).
 //  - Nos estados finais, qualquer outro caractere NAO consome: e devolvido
-//    ao arquivo (scannerDevolver) e o token e emitido.
-//  - Estados coloridos (q1, q3, q7) consultam a Tabela de Simbolos com
-//    tsBuscar() antes de emitir o token.
+//    ao Scanner (scannerDevolver) e o token e emitido.
+//  - Estados coloridos (q1, q3, q7) consultam a Tabela de Simbolos antes de
+//    emitir o token e, se o lexema for reservado, passam pela validacao de
+//    rotulo (q_rot) antes de aceitar.
 //  - Espacos, tabs e quebras de linha em q0 sao ignorados (laco em q0).
+//  - Recuperacao de erro: todo erro e registrado no .err e a analise
+//    continua a partir de q0 (modo panico ate um delimitador).
 // ============================================================================
 
 digraph AFD_uAssembly {
@@ -41,19 +44,24 @@ digraph AFD_uAssembly {
     // ---- comentario --------------------------------------------------------
     qCom [label="q_com\n(comentario)", fillcolor="#f3f4f6"];
     q0 -> qCom [label="#"];
-    qCom -> qCom [label="qualquer exceto\n\\n EOF"];
-    qCom -> q0 [label="\\n\n(sem token)"];
+    qCom -> qCom [label="qualquer exceto\n\\n \\r EOF"];
+    qCom -> q0 [label="\\n, \\r ou \\r\\n\n(sem token)"];
     qCom -> qEOF [label="EOF"];
 
     comNote [shape=note, fillcolor="#fef9c3", fontsize=9,
-        label="Neste projeto o comentario e\nconsumido no pre-processamento\n(preprocessador.c: remover_comentario),\nantes do arquivo chegar em lexico.c.\nEstado incluido aqui para representar\no caminho pedido no item 3 do enunciado."];
+        label="Neste projeto o comentario e\nconsumido no pre-processamento\n(preprocessador.c: remover_comentario),\nantes do arquivo chegar em lexico.c.\nO pre-processador aceita \\n, \\r\\n e \\r\nisolado como fim de linha e le linhas\nde qualquer tamanho (sem dividi-las)."];
     qCom -> comNote [style=dotted, arrowhead=none];
 
     // ---- identificador / instrucao / rotulo -----------------------------
     q1 [label="q1\nID ou\nreservada", shape=doublecircle, fillcolor="#bfdbfe"];
     q0 -> q1 [label="[A-Za-z_]"];
     q1 -> q1 [label="[A-Za-z0-9_]"];
-    q1 -> qErr [label="outro caractere\n(nao e delimitador)\nERRO_IDENTIFICADOR\n_MALFORMADO", style=dashed];
+
+    // identificador malformado: modo panico ate um delimitador
+    qMalf [label="q_malf\n(consome ate\ndelimitador)", fillcolor="#fee2e2"];
+    q1 -> qMalf [label="outro caractere\n(nao e delimitador)", style=dashed];
+    qMalf -> qMalf [label="nao delimitador"];
+    qMalf -> qErr [label="delimitador (devolvido)\nERRO_IDENTIFICADOR\n_MALFORMADO", style=dashed];
 
     // ---- diretiva --------------------------------------------------------
     q2 [label="q2"];
@@ -68,21 +76,36 @@ digraph AFD_uAssembly {
     q5 [label="q5\nSTRING", shape=doublecircle, fillcolor="#fde68a"];
     q0 -> q4 [label="\""];
     q4 -> q4 [label="qualquer exceto\n\" \\ \\n EOF"];
-    q4 -> q5 [label="\""];
+    q4 -> q5 [label="\"\n(nenhum escape invalido)"];
 
     // ---- sequencia de escape dentro da string ---------------------------
     qEsc [label="q_esc\n(escape)"];
+    q4b [label="q4'\n(string com\nescape invalido)", fillcolor="#fee2e2"];
     q4   -> qEsc [label="\\"];
     qEsc -> q4   [label="n  t  \\  \"  0"];
-    qEsc -> qErr [label="outro\nERRO_ESCAPE_INVALIDO", style=dashed];
-    qEsc -> qErr [label="\\n ou EOF\nERRO_STRING_NAO_FECHADA", style=dashed];
+    qEsc -> q4b  [label="outro\nregistra ERRO_ESCAPE_INVALIDO\n(um por sequencia)", style=dashed];
+    q4b  -> q4b  [label="qualquer exceto\n\" \\n EOF\n(cada novo \\x invalido\ngera outro erro)"];
+    q4b  -> qErr [label="\"\nTK_ERRO", style=dashed];
+    q4b  -> qErr [label="\\n: ERRO_STRING_NAO_FECHADA\nEOF: ERRO_STRING_NAO_FECHADA_EOF", style=dashed];
+    qEsc -> qErr [label="\\n: ERRO_STRING_NAO_FECHADA\nEOF: ERRO_STRING_NAO_FECHADA_EOF", style=dashed];
 
     // ---- registrador -----------------------------------------------------
     q6 [label="q6"];
     q7 [label="q7\nREGISTRADOR", shape=doublecircle, fillcolor="#fbcfe8"];
     q0 -> q6 [label="$"];
-    q6 -> q7 [label="[A-Za-z0-9]"];
-    q7 -> q7 [label="[A-Za-z0-9]"];
+    q6 -> q7 [label="[A-Za-z0-9_]"];
+    q7 -> q7 [label="[A-Za-z0-9_]"];
+    q7 -> qErr [label="nao esta na TS\nERRO_REGISTRADOR_INVALIDO", style=dashed];
+
+    // ---- validacao de rotulo (lookahead) --------------------------------
+    qRot [label="q_rot\n(olha a frente:\nespacos* ':' ?)", fillcolor="#e0e7ff"];
+    q1 -> qRot [label="lexema e\nINSTRUCAO", style=dotted];
+    q3 -> qRot [label="lexema e\nDIRETIVA", style=dotted];
+    q7 -> qRot [label="lexema e\nREGISTRADOR", style=dotted];
+    qRot -> qRot [label="espaco, \\t"];
+    qRot -> qErr [label="':'\nERRO_ROTULO_RESERVADO\n(':' devolvido)", style=dashed];
+    qRotOk [label="aceita token\nreservado\n(INS_*, DIR_*, REG)", shape=doublecircle, fillcolor="#e0e7ff"];
+    qRot -> qRotOk [label="outro\n(tudo devolvido)"];
 
     // ---- numeros (decimal e hexadecimal) ---------------------------------
     q8  [label="q8"];
@@ -110,18 +133,19 @@ digraph AFD_uAssembly {
     q13 [label="q13\nSIMBOLO", shape=doublecircle, fillcolor="#ddd6fe"];
     q0 -> q13 [label=", : ( )"];
 
-    // ---- erro lexico -----------------------------------------------------
-    qErr [label="q_erro\nerro lexico", shape=doublecircle, style="filled,dashed", fillcolor="#fecaca"];
+    // ---- erro lexico e recuperacao --------------------------------------
+    qErr [label="q_erro\nTK_ERRO\n(registra no .err)", shape=doublecircle, style="filled,dashed", fillcolor="#fecaca"];
     q0  -> qErr [label="outro caractere\nERRO_CARACTERE_INVALIDO", style=dashed];
     q2  -> qErr [label="outro\nERRO_DIRETIVA_INVALIDA", style=dashed];
-    q4  -> qErr [label="\\n ou EOF\nERRO_STRING_NAO_FECHADA", style=dashed];
+    q4  -> qErr [label="\\n: ERRO_STRING_NAO_FECHADA\nEOF: ERRO_STRING_NAO_FECHADA_EOF", style=dashed];
     q6  -> qErr [label="outro\nERRO_REGISTRADOR_INVALIDO", style=dashed];
     q8  -> qErr [label="outro ('-' isolado)\nERRO_CARACTERE_INVALIDO", style=dashed];
     q11 -> qErr [label="outro\nERRO_NUMERO_INVALIDO", style=dashed];
+    qErr -> q0  [label="recuperacao: emite TK_ERRO\ne retoma a analise em q0", style=bold, color="#b91c1c", fontcolor="#b91c1c"];
 
     // ---- ligacao com a Tabela de Simbolos --------------------------------
     ts [shape=note, fillcolor="#fef9c3", fontsize=10,
-        label="Tabela de Simbolos\ntsBuscar(lexema)\n\nq1: INSTRUCAO -> TK_INSTRUCAO\n     ja inserido    -> TK_ID\n     novo           -> tsInserir + TK_ID\nq3: DIRETIVA valida -> DIR_*\n     nao encontrada -> ERRO_DIRETIVA_INVALIDA\nq7: nomeado ($t0, $sp, ...) -> tsBuscar\n     numerico ($0-$31)    -> validado direto (strtol)\n     invalido -> ERRO_REGISTRADOR_INVALIDO"];
+        label="Tabela de Simbolos (dinamica, lexemas sem limite de tamanho)\n\nq1: INSTRUCAO     -> q_rot -> INS_*\n     ja inserido    -> ID (registra referencia)\n     novo           -> tsInserir + ID\nq3: DIRETIVA valida -> q_rot -> DIR_*\n     nao encontrada -> ERRO_DIRETIVA_INVALIDA\nq7: nomeado ($t0, $sp, ...) e numerico ($0 a $31)\n     estao na TS -> q_rot -> REG\n     ($05 e consultado como $5)\n     nao encontrado -> ERRO_REGISTRADOR_INVALIDO"];
     q1 -> ts [style=dotted, arrowhead=none];
     q3 -> ts [style=dotted, arrowhead=none];
     q7 -> ts [style=dotted, arrowhead=none];

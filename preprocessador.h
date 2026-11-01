@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 
-#define MAX_LINHA 1024
 #define USAR_POSICAO_ORIGINAL 1
 
 void remover_quebra_linha(char *linha);
@@ -23,6 +22,8 @@ void PreProcessamento(FILE *entrada, FILE *saida);
 void preMapear(int linhaPre, int colunaPre, int *linhaOrig, int *colunaOrig);
 
 void preMapearEOF(int *linhaOrig, int *colunaOrig);
+
+int preLinhaTerminaNoEOF(int linhaPre);
 
 void preLiberarMapa(void);
 

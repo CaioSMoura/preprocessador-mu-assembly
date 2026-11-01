@@ -1,0 +1,1 @@
+# Arquivo com quebras de linha CR isoladas (Mac classico).textmain: li $v0, 10  add $t0, $t1, $t2 # comentariosyscall
