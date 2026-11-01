@@ -1,0 +1,377 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "sintatico.h"
+
+static void semMemoria(void){
+    fprintf(stderr, "ERRO: memoria insuficiente na analise sintatica.\n");
+    exit(2); 
+}
+
+static char *copiarStr(const char *s){
+    size_t n = strlen(s) + 1;
+    char *c = malloc(n);
+    if (c == NULL) semMemoria();
+    memcpy(c, s, n);
+    return c;
+}
+
+/* Le uma linha de tamanho arbitrario, sem o terminador. Retorna 0 no fim do arquivo. */
+static int lerLinhaLex(FILE *f, char **buf, size_t *cap){
+    size_t n = 0;
+    int c;
+
+    while ((c = fgetc(f)) != EOF && c != '\n') {
+        if (n + 1 >= *cap) {
+            size_t novaCap = (*cap == 0) ? 128 : *cap * 2;
+            char *novo = realloc(*buf, novaCap);
+            if (novo == NULL) semMemoria();
+            *buf = novo;
+            *cap = novaCap;
+        }
+        (*buf)[n++] = (char)c;
+    }
+
+    if (c == EOF && n == 0) {
+        return 0;
+    }
+
+    if (*buf == NULL) {
+        *buf = malloc(1);
+        if (*buf == NULL) semMemoria();
+        *cap = 1;
+    }
+
+    if (n > 0 && (*buf)[n - 1] == '\r') {
+        n--;
+    }
+    (*buf)[n] = '\0';
+    return 1;
+}
+
+static int lerInteiro(const char *s, int *valor){
+    char *fim;
+    long v;
+
+    if (*s == '\0') return 0;
+    v = strtol(s, &fim, 10);
+    if (*fim != '\0') return 0;
+    *valor = (int)v;
+    return 1;
+}
+
+/* Separa uma linha "<CATEGORIA, lexema> linha coluna". */
+static int separarLinha(char *s, char **cat, char **lex, int *linha, int *coluna){
+    char *sep, *ult, *pen;
+
+    if (s[0] != '<') return 0;
+
+    sep = strstr(s + 1, ", ");
+    if (sep == NULL) return 0;
+    *sep = '\0';
+    *cat = s + 1;
+    *lex = sep + 2;
+
+    ult = strrchr(*lex, ' ');
+    if (ult == NULL || !lerInteiro(ult + 1, coluna)) return 0;
+    *ult = '\0';
+
+    pen = strrchr(*lex, ' ');
+    if (pen == NULL || pen == *lex || pen[-1] != '>' || !lerInteiro(pen + 1, linha)) return 0;
+    pen[-1] = '\0';
+
+    return strlen(*cat) > 0 && strlen(*cat) < MAX_CAT_SIN;
+}
+
+static void adicionarToken(Parser *p, const char *cat, const char *lex, int linha, int coluna){
+    TokenSin *t;
+
+    if (p->qtd == p->cap) {
+        int novaCap = (p->cap == 0) ? 128 : p->cap * 2;
+        TokenSin *novo = realloc(p->toks, (size_t)novaCap * sizeof(TokenSin));
+        if (novo == NULL) semMemoria();
+        p->toks = novo;
+        p->cap = novaCap;
+    }
+
+    t = &p->toks[p->qtd++];
+    snprintf(t->categoria, MAX_CAT_SIN, "%s", cat);
+    t->lexema = copiarStr(lex);
+    t->linha = linha;
+    t->coluna = coluna;
+}
+
+/* Insere EOL logo apos o ultimo token, se a linha dele ainda nao foi encerrada. */
+static void encerrarLinha(Parser *p){
+    TokenSin *ult;
+
+    if (p->qtd == 0) return;
+
+    ult = &p->toks[p->qtd - 1];
+    if (strcmp(ult->categoria, "EOL") == 0) return;
+
+    adicionarToken(p, "EOL", "", ult->linha, ult->coluna + (int)strlen(ult->lexema));
+}
+
+int carregarTokens(Parser *p, FILE *lex){
+    char *linhaTxt = NULL;
+    size_t cap = 0;
+    int numLinha = 0;
+    int temEOF = 0;
+
+    rewind(lex);
+
+    while (!temEOF && lerLinhaLex(lex, &linhaTxt, &cap)) {
+        char *cat, *lexema;
+        int linha, coluna;
+
+        numLinha++;
+
+        if (linhaTxt[0] == '\0') continue;
+
+        if (!separarLinha(linhaTxt, &cat, &lexema, &linha, &coluna)) {
+            fprintf(stderr, "ERRO: linha %d do arquivo de tokens esta mal formada.\n", numLinha);
+            free(linhaTxt);
+            return -1;
+        }
+
+        if (strcmp(cat, "TK_EOF") == 0) {
+            encerrarLinha(p);
+            adicionarToken(p, "TK_EOF", lexema, linha, coluna);
+            temEOF = 1;
+            continue;
+        }
+
+        if (p->qtd > 0 && p->toks[p->qtd - 1].linha != linha) {
+            encerrarLinha(p);
+        }
+
+        adicionarToken(p, cat, lexema, linha, coluna);
+    }
+
+    free(linhaTxt);
+
+    if (ferror(lex)) {
+        fprintf(stderr, "ERRO: falha na leitura do arquivo de tokens.\n");
+        return -1;
+    }
+
+    /* .lex sem TK_EOF explicito: acrescenta um, sem duplicar */
+    if (!temEOF) {
+        int linha = (p->qtd > 0) ? p->toks[p->qtd - 1].linha + 1 : 1;
+        encerrarLinha(p);
+        adicionarToken(p, "TK_EOF", "EOF", linha, 1);
+    }
+
+    return 0;
+}
+
+void liberarTokens(Parser *p){
+    for (int i = 0; i < p->qtd; i++) {
+        free(p->toks[i].lexema);
+    }
+    free(p->toks);
+    p->toks = NULL;
+    p->qtd = p->cap = p->pos = 0;
+}
+
+TokenSin *atual(Parser *p){
+    return &p->toks[p->pos];
+}
+
+/* Avanca para o proximo token; nunca passa de TK_EOF. */
+TokenSin *consumir(Parser *p){
+    TokenSin *t = atual(p);
+
+    if (strcmp(t->categoria, "TK_EOF") != 0) {
+        p->pos++;
+    }
+    return t;
+}
+
+int verifica(Parser *p, const char *categoria){
+    return strcmp(atual(p)->categoria, categoria) == 0;
+}
+
+int AnaliseSintatica(FILE *tokens, FILE *arvore, FILE *erros){
+    Parser p;
+    No *raiz;
+    int resultado;
+
+    if (tokens == NULL || arvore == NULL || erros == NULL) {
+        return SIN_FALHA;
+    }
+
+    memset(&p, 0, sizeof p);
+    p.erros = erros;
+
+    if (carregarTokens(&p, tokens) != 0) {
+        liberarTokens(&p);
+        return SIN_FALHA;
+    }
+
+    raiz = programa(&p);
+
+    resultado = (p.qtdErros == 0 && raiz != NULL) ? SIN_VALIDO : SIN_INVALIDO;
+
+    /* Programa invalido: o .dot fica vazio */
+    if (resultado == SIN_VALIDO) {
+        gravarDot(arvore, raiz);
+        fprintf(erros, "Nenhum erro sintático encontrado.\n");
+    }
+
+    liberarArvore(raiz);
+    liberarTokens(&p);
+
+    if (ferror(arvore) || ferror(erros)) {
+        return SIN_FALHA;
+    }
+
+    return resultado;
+}
+
+
+/* ===== Pessoa 4(VERSAO PROVISORIA): erros, recuperacao e arvore ===== */
+
+No *noInterno(Parser *p, const char *nome){
+    No *n = calloc(1, sizeof(No));
+    if (n == NULL) semMemoria();
+    n->id = p->proximoId++;
+    n->rotulo = copiarStr(nome);
+    return n;
+}
+
+No *noFolha(Parser *p, const TokenSin *t){
+    No *n;
+    size_t tam = strlen(t->categoria) + strlen(t->lexema) + 2;
+    char *rotulo = malloc(tam);
+
+    if (rotulo == NULL) semMemoria();
+
+    if (t->lexema[0] == '\0') {
+        snprintf(rotulo, tam, "%s", t->categoria);
+    } else {
+        snprintf(rotulo, tam, "%s\n%s", t->categoria, t->lexema);
+    }
+
+    n = noInterno(p, rotulo);
+    free(rotulo);
+    return n;
+}
+
+void erroSintatico(Parser *p, const char *esperado){
+    TokenSin *t = atual(p);
+
+    p->qtdErros++;
+    fprintf(p->erros, "Linha %d, coluna %d:\nEncontrado %s(\"%s\"); esperado %s.\n",
+            t->linha, t->coluna, t->categoria, t->lexema, esperado);
+}
+
+No *esperar(Parser *p, const char *categoria, const char *esperado){
+    if (!verifica(p, categoria)) {
+        erroSintatico(p, esperado);
+        return NULL;
+    }
+    return noFolha(p, consumir(p));
+}
+
+void sincronizar(Parser *p){
+    while (!verifica(p, "EOL") && !verifica(p, "TK_EOF")) {
+        consumir(p);
+    }
+    if (verifica(p, "EOL")) {
+        consumir(p);
+    }
+}
+
+void adicionarFilho(No *pai, No *filho){
+    if (pai == NULL || filho == NULL) return;
+
+    if (pai->qtdFilhos == pai->capFilhos) {
+        int novaCap = (pai->capFilhos == 0) ? 4 : pai->capFilhos * 2;
+        No **novo = realloc(pai->filhos, (size_t)novaCap * sizeof(No *));
+        if (novo == NULL) semMemoria();
+        pai->filhos = novo;
+        pai->capFilhos = novaCap;
+    }
+    pai->filhos[pai->qtdFilhos++] = filho;
+}
+
+void liberarArvore(No *n){
+    if (n == NULL) return;
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        liberarArvore(n->filhos[i]);
+    }
+    free(n->filhos);
+    free(n->rotulo);
+    free(n);
+}
+
+static void gravarRotulo(FILE *out, const char *s){
+    for (; *s != '\0'; s++) {
+        if (*s == '"' || *s == '\\') {
+            fputc('\\', out);
+            fputc(*s, out);
+        } else if (*s == '\n') {
+            fputs("\\n", out);
+        } else {
+            fputc(*s, out);
+        }
+    }
+}
+
+static void gravarNos(FILE *out, No *n){
+    fprintf(out, "  n%d [label=\"", n->id);
+    gravarRotulo(out, n->rotulo);
+    fprintf(out, "\"];\n");
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        gravarNos(out, n->filhos[i]);
+    }
+}
+
+static void gravarArestas(FILE *out, No *n){
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        fprintf(out, "  n%d -> n%d;\n", n->id, n->filhos[i]->id);
+        gravarArestas(out, n->filhos[i]);
+    }
+}
+
+void gravarDot(FILE *out, No *raiz){
+    fprintf(out, "digraph ArvoreSintatica {\n");
+    fprintf(out, "  graph [ordering=out];\n");
+    fprintf(out, "  node [shape=box, fontname=\"Arial\"];\n");
+    fprintf(out, "  edge [arrowhead=none];\n");
+    if (raiz != NULL) {
+        gravarNos(out, raiz);
+        gravarArestas(out, raiz);
+    }
+    fprintf(out, "}\n");
+}
+
+
+/* ===== Pessoa 2(VERSAO PROVISORIA): programa, secoes, rotulos e diretivas ===== */
+
+No *programa(Parser *p){
+    No *raiz;
+
+    if (!verifica(p, "DIR_DATA") && !verifica(p, "DIR_TEXT")) {
+        erroSintatico(p, "DIR_DATA(\".data\") ou DIR_TEXT(\".text\")");
+        return NULL;
+    }
+
+    raiz = noInterno(p, "<programa>");
+    while (!verifica(p, "TK_EOF")) {
+        adicionarFilho(raiz, noFolha(p, consumir(p)));
+    }
+    adicionarFilho(raiz, noFolha(p, consumir(p)));
+
+    return raiz;
+}
+
+
+/* ===== Pessoa 3(VERSAO PROVISORIA): instrucoes ===== */
+
+No *instrucao(Parser *p){
+    erroSintatico(p, "instrucao");
+    return NULL;
+}

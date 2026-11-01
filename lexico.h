@@ -77,6 +77,7 @@ void tsGravar(FILE *out);
 void erroRegistrar(const char *tipo, const char *lexema, int linha, int coluna);
 void errosGravar(FILE *out);
 void lexicoLiberar(void);
+int lexicoQtdErros(void);
 
 void afdIdentificador(Scanner *s, int primeiro, Token *t);
 void afdDiretiva(Scanner *s, int primeiro, Token *t);

@@ -3,11 +3,13 @@
 #include <stdlib.h>
 #include "preprocessador.h"
 #include "lexico.h"
+#include "sintatico.h"
 
-#define SUCESSO 0
-#define ERRO_ARGUMENTOS 1
-#define ERRO_ENTRADA 2
-#define ERRO_SAIDA 3
+#define SUCESSO          0
+#define ERRO_REJEITADO   1   /* erros lexicos ou sintaticos */
+#define ERRO_ARGUMENTOS  2
+#define ERRO_ENTRADA     2
+#define ERRO_SAIDA       2
 
 #define MAX_CAMINHO 512
 
@@ -23,29 +25,15 @@ static int copiar_caminho(char *destino, const char *origem)
     return 1;
 }
 
+/* Gera o nome de um arquivo de saida: prefixo (origem) + extensao */
 static int trocar_extensao(const char *origem, const char *ext, char *destino)
 {
-    const char *ponto = strrchr(origem, '.');
-    const char *barra = strrchr(origem, '/');
-    const char *contrabarra = strrchr(origem, '\\');
-
-    if (contrabarra != NULL && (barra == NULL || contrabarra > barra)) {
-        barra = contrabarra;
-    }
-
-    if (ponto != NULL && barra != NULL && ponto < barra) {
-        ponto = NULL;
-    }
-
-    size_t n = (ponto != NULL) ? (size_t)(ponto - origem) : strlen(origem);
-
-    if (n + strlen(ext) >= MAX_CAMINHO) {
+    if (strlen(origem) + strlen(ext) >= MAX_CAMINHO) {
         fprintf(stderr, "ERRO: Caminho muito longo para gerar \"%s\".\n", ext);
         return 0;
     }
 
-    memcpy(destino, origem, n);
-    destino[n] = '\0';
+    strcpy(destino, origem);
     strcat(destino, ext);
 
     return 1;
@@ -71,10 +59,8 @@ static int fechar_arquivo(FILE *arq, const char *nome, int gravacao)
 
 static void exibir_uso(const char *programa){
 
-    fprintf(stderr, "Uso: %s <arquivo_entrada.asm> <arquivo_saida.lex>\n", programa);
-    fprintf(stderr, "  ou %s <arquivo_entrada.asm> <arquivo_saida.pre> <arquivo_saida.lex>\n", programa);
-    fprintf(stderr, "Exemplo: %s teste.asm teste.lex\n", programa);
-    fprintf(stderr, "Exemplo: %s teste.asm teste.pre teste.lex\n", programa);
+    fprintf(stderr, "Uso: %s <arquivo_entrada.asm> <prefixo_saida>\n", programa);
+    fprintf(stderr, "Exemplo: %s teste.asm resultado\n", programa);
 }
 
 int main(int argc, char *argv[]){
@@ -84,32 +70,21 @@ int main(int argc, char *argv[]){
     char nome_lex[MAX_CAMINHO];
     char nome_ts[MAX_CAMINHO];
     char nome_err[MAX_CAMINHO];
+    char nome_sin_err[MAX_CAMINHO];
+    char nome_dot[MAX_CAMINHO];
 
     FILE *entrada = NULL;
     FILE *saida = NULL;
+    FILE *arvore = NULL;
 
-    atexit(lexicoLiberar);   
+    int resultado;
 
-    if(argc == 3){
+    atexit(lexicoLiberar);
 
-        if (!copiar_caminho(nome_entrada, argv[1]) ||
-            !copiar_caminho(nome_lex, argv[2]) ||
-            !trocar_extensao(nome_entrada, ".pre", nome_pre)) {
-            return ERRO_ARGUMENTOS;
-        }
-
-    } else if (argc == 4){
-
-        if (!copiar_caminho(nome_entrada, argv[1]) ||
-            !copiar_caminho(nome_pre, argv[2]) ||
-            !copiar_caminho(nome_lex, argv[3])) {
-            return ERRO_ARGUMENTOS;
-        }
-
-    } else {
+    if(argc != 3){
 
         fprintf(stderr, "ERRO: Quantidade de argumentos invalida ");
-        fprintf(stderr, "(esperado 2 ou 3, recebido %d).\n", argc - 1);
+        fprintf(stderr, "(esperado 2, recebido %d).\n", argc - 1);
 
         exibir_uso(argv[0]);
 
@@ -117,13 +92,18 @@ int main(int argc, char *argv[]){
 
     }
 
-    if (!trocar_extensao(nome_lex, ".ts",  nome_ts) ||
-        !trocar_extensao(nome_lex, ".err", nome_err)) {
+    if (!copiar_caminho(nome_entrada, argv[1]) ||
+        !trocar_extensao(argv[2], ".pre",     nome_pre) ||
+        !trocar_extensao(argv[2], ".lex",     nome_lex) ||
+        !trocar_extensao(argv[2], ".ts",      nome_ts) ||
+        !trocar_extensao(argv[2], ".lex.err", nome_err) ||
+        !trocar_extensao(argv[2], ".sin.err", nome_sin_err) ||
+        !trocar_extensao(argv[2], ".dot",     nome_dot)) {
         return ERRO_ARGUMENTOS;
     }
 
 
-    entrada = fopen(nome_entrada, "rb"); 
+    entrada = fopen(nome_entrada, "rb");
 
     if (entrada == NULL){
 
@@ -238,13 +218,88 @@ int main(int argc, char *argv[]){
 
     preLiberarMapa();
 
-    printf("Processamento concluido.\n");
-    printf("Entrada:            %s\n", nome_entrada);
-    printf("Pre-processado:     %s\n", nome_pre);
-    printf("Tokens:             %s\n", nome_lex);
-    printf("Tabela de simbolos: %s\n", nome_ts);
-    printf("Erros lexicos:      %s\n", nome_err);
+    saida = fopen(nome_sin_err, "w");
 
-    return SUCESSO;
+    if(saida == NULL){
+
+        fprintf(stderr, "ERRO: Nao foi possivel criar o arquivo ");
+        fprintf(stderr, "\"%s\".\n", nome_sin_err);
+
+        return ERRO_SAIDA;
+
+    }
+
+    arvore = fopen(nome_dot, "w");
+
+    if(arvore == NULL){
+
+        fprintf(stderr, "ERRO: Nao foi possivel criar o arquivo ");
+        fprintf(stderr, "\"%s\".\n", nome_dot);
+        fclose(saida);
+
+        return ERRO_SAIDA;
+
+    }
+
+    if (lexicoQtdErros() > 0) {
+
+        printf("ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.\n");
+        fprintf(saida, "ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.\n");
+
+        resultado = ERRO_REJEITADO;
+
+    } else {
+
+        entrada = fopen(nome_lex, "r");
+
+        if(entrada == NULL){
+
+            fprintf(stderr, "ERRO: Nao foi possivel reabrir o arquivo ");
+            fprintf(stderr, "\"%s\".\n", nome_lex);
+            fclose(saida);
+            fclose(arvore);
+
+            return ERRO_ENTRADA;
+
+        }
+
+        resultado = AnaliseSintatica(entrada, arvore, saida);
+
+        if (!fechar_arquivo(entrada, nome_lex, 0)) {
+            fclose(saida);
+            fclose(arvore);
+            return ERRO_ENTRADA;
+        }
+
+        if (resultado == SIN_FALHA) {
+
+            fprintf(stderr, "ERRO: A analise sintatica nao pode ser concluida.\n");
+            fclose(saida);
+            fclose(arvore);
+
+            return ERRO_ENTRADA;
+
+        }
+
+        if (resultado == SIN_VALIDO) {
+            printf("PROGRAMA SINTATICAMENTE VÁLIDO\n");
+            resultado = SUCESSO;
+        } else {
+            printf("PROGRAMA SINTATICAMENTE INVÁLIDO\n");
+            resultado = ERRO_REJEITADO;
+        }
+
+    }
+
+    if (!fechar_arquivo(arvore, nome_dot, 1)) {
+        fclose(saida);
+        return ERRO_SAIDA;
+    }
+
+    if (!fechar_arquivo(saida, nome_sin_err, 1)) {
+        return ERRO_SAIDA;
+    }
+
+    return resultado;
 
 }

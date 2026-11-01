@@ -7,7 +7,7 @@
 
 static void semMemoria(void){
     fprintf(stderr, "ERRO: memoria insuficiente na analise lexica.\n");
-    exit(EXIT_FAILURE);
+    exit(2); 
 }
 
 static char *copiarTexto(const char *origem){
@@ -59,6 +59,21 @@ static int igualSemCaixa(const char *a, const char *b){
         b++;
     }
     return *a == *b;
+}
+
+// Copia origem -> destino em minusculas (no maximo tam-1 caracteres).
+static void minusculas(const char *origem, char *destino, size_t tam){
+
+    size_t i;
+
+    for (i = 0; origem[i] != '\0' && i < tam - 1; i++) {
+
+        destino[i] = (char)tolower((unsigned char)origem[i]);
+
+    }
+
+    destino[i] = '\0';
+
 }
 
 
@@ -298,19 +313,19 @@ void errosGravar(FILE *out){
     }
 }
 
-static int ehDelimitador(int c){
+static int delimitadorValido(int c){
     return (c == EOF) || (c == ' ') || (c == '\t') || (c == '\n') || (c == '\r') ||
            (c == ',') || (c == ':') || (c == '(') || (c == ')') ||
            (c == '.') || (c == '$') || (c == '"');
 }
 
-static int ehCategoriaReservada(const char *categoria);
+static int categoriaReservada(const char *categoria);
 static int tsConsultar(const char *lexema, char *categoria, char *nomeToken);
 static int rejeitarRotuloReservado(Scanner *s, const char *chave, const char *lexema,
                                    Token *t){
     char categoria[MAX_CATEGORIA];
 
-    if (!tsConsultar(chave, categoria, NULL) || !ehCategoriaReservada(categoria)) {
+    if (!tsConsultar(chave, categoria, NULL) || !categoriaReservada(categoria)) {
         return 0;
     }
 
@@ -324,71 +339,71 @@ static int rejeitarRotuloReservado(Scanner *s, const char *chave, const char *le
 }
 
 void afdIdentificador(Scanner *s, int primeiro, Token *t){
-    Texto lx;
-    textoIniciar(&lx);
+    Texto lexema;
+    textoIniciar(&lexema);
 
-    textoAdd(&lx, primeiro);
+    textoAdd(&lexema, primeiro);
     int c = scannerLer(s);
 
     while (isalnum((unsigned char)c) || c == '_') {
-        textoAdd(&lx, c);
+        textoAdd(&lexema, c);
         c = scannerLer(s);
     }
 
-    if (!ehDelimitador(c)) {
-        while (!ehDelimitador(c)) {
-            textoAdd(&lx, c);
+    if (!delimitadorValido(c)) {
+        while (!delimitadorValido(c)) {
+            textoAdd(&lexema, c);
             c = scannerLer(s);
         }
 
         scannerDevolver(s, c);
-        erroRegistrar("ERRO_IDENTIFICADOR_MALFORMADO", lx.dados, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lx.dados, s);
-        textoLiberar(&lx);
+        erroRegistrar("ERRO_IDENTIFICADOR_MALFORMADO", lexema.dados, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema.dados, s);
+        textoLiberar(&lexema);
         return;
     }
 
     scannerDevolver(s, c);
 
-    if (rejeitarRotuloReservado(s, lx.dados, lx.dados, t)) {
-        textoLiberar(&lx);
+    if (rejeitarRotuloReservado(s, lexema.dados, lexema.dados, t)) {
+        textoLiberar(&lexema);
         return;
     }
 
     char nomeToken[MAX_NOME];
     char categoria[MAX_CATEGORIA];
 
-    if (tsBuscar(lx.dados, categoria, nomeToken, s->tokenLinha, s->tokenColuna) == 1) {
-        montarToken(t, nomeToken, lx.dados, s);
+    if (tsBuscar(lexema.dados, categoria, nomeToken, s->tokenLinha, s->tokenColuna) == 1) {
+        montarToken(t, nomeToken, lexema.dados, s);
     } else {
-        tsInserir(lx.dados, CAT_ID, s->tokenLinha, s->tokenColuna);
-        montarToken(t, TK_ID, lx.dados, s);
+        tsInserir(lexema.dados, CAT_ID, s->tokenLinha, s->tokenColuna);
+        montarToken(t, TK_ID, lexema.dados, s);
     }
 
-    textoLiberar(&lx);
+    textoLiberar(&lexema);
 }
 
 void afdDiretiva(Scanner *s, int primeiro, Token *t){
-    Texto lx;
-    textoIniciar(&lx);
+    Texto lexema;
+    textoIniciar(&lexema);
 
-    textoAdd(&lx, primeiro);
+    textoAdd(&lexema, primeiro);
     int c = scannerLer(s);
 
     while (isalpha((unsigned char)c)) {
-        textoAdd(&lx, c);
+        textoAdd(&lexema, c);
         c = scannerLer(s);
     }
 
     if (isdigit((unsigned char)c) || c == '_') {
         while (isalnum((unsigned char)c) || c == '_') {
-            textoAdd(&lx, c);
+            textoAdd(&lexema, c);
             c = scannerLer(s);
         }
         scannerDevolver(s, c);
-        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lx.dados, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lx.dados, s);
-        textoLiberar(&lx);
+        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lexema.dados, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema.dados, s);
+        textoLiberar(&lexema);
         return;
     }
 
@@ -397,15 +412,15 @@ void afdDiretiva(Scanner *s, int primeiro, Token *t){
     char nomeToken[MAX_NOME];
     char categoria[MAX_CATEGORIA];
 
-    if (!tsConsultar(lx.dados, categoria, NULL) || strcmp(categoria, CAT_DIRETIVA) != 0) {
-        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lx.dados, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lx.dados, s);
-    } else if (!rejeitarRotuloReservado(s, lx.dados, lx.dados, t)) {
-        tsBuscar(lx.dados, categoria, nomeToken, s->tokenLinha, s->tokenColuna);
-        montarToken(t, nomeToken, lx.dados, s);
+    if (!tsConsultar(lexema.dados, categoria, NULL) || strcmp(categoria, CAT_DIRETIVA) != 0) {
+        erroRegistrar("ERRO_DIRETIVA_INVALIDA", lexema.dados, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema.dados, s);
+    } else if (!rejeitarRotuloReservado(s, lexema.dados, lexema.dados, t)) {
+        tsBuscar(lexema.dados, categoria, nomeToken, s->tokenLinha, s->tokenColuna);
+        montarToken(t, nomeToken, lexema.dados, s);
     }
 
-    textoLiberar(&lx);
+    textoLiberar(&lexema);
 }
 
 static int escapeValido(int c){
@@ -413,11 +428,11 @@ static int escapeValido(int c){
 }
 
 void afdString(Scanner *s, int primeiro, Token *t){
-    Texto lx;
-    int escapesInvalidos = 0;
+    Texto lexema;
+    int escape_invalido = 0;
 
-    textoIniciar(&lx);
-    textoAdd(&lx, primeiro);
+    textoIniciar(&lexema);
+    textoAdd(&lexema, primeiro);
 
     int c = scannerLer(s);
 
@@ -426,14 +441,14 @@ void afdString(Scanner *s, int primeiro, Token *t){
             int linhaEsc, colunaEsc;
             preMapear(s->linha, s->coluna, &linhaEsc, &colunaEsc);
 
-            textoAdd(&lx, c);
+            textoAdd(&lexema, c);
             c = scannerLer(s);
 
             if (c == '\n' || c == EOF) {
                 break;
             }
 
-            textoAdd(&lx, c);
+            textoAdd(&lexema, c);
 
             if (!escapeValido(c)) {
                 char seq[3];
@@ -441,10 +456,10 @@ void afdString(Scanner *s, int primeiro, Token *t){
                 seq[1] = (char)c;
                 seq[2] = '\0';
                 erroRegistrar("ERRO_ESCAPE_INVALIDO", seq, linhaEsc, colunaEsc);
-                escapesInvalidos++;
+                escape_invalido++;
             }
         } else {
-            textoAdd(&lx, c);
+            textoAdd(&lexema, c);
         }
         c = scannerLer(s);
     }
@@ -455,33 +470,33 @@ void afdString(Scanner *s, int primeiro, Token *t){
 
         erroRegistrar(noFimDoArquivo ? "ERRO_STRING_NAO_FECHADA_EOF"
                                      : "ERRO_STRING_NAO_FECHADA",
-                      lx.dados, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lx.dados, s);
+                      lexema.dados, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", lexema.dados, s);
     } else {
-        textoAdd(&lx, '"');
-        montarToken(t, escapesInvalidos ? "TK_ERRO" : "STRING", lx.dados, s);
+        textoAdd(&lexema, '"');
+        montarToken(t, escape_invalido ? "TK_ERRO" : "STRING", lexema.dados, s);
     }
 
-    textoLiberar(&lx);
+    textoLiberar(&lexema);
 }
 
 
 void afdRegistrador(Scanner *s, int primeiro, Token *t){
-    Texto lx;
-    textoIniciar(&lx);
+    Texto buffer;
+    textoIniciar(&buffer);
 
-    textoAdd(&lx, primeiro);
+    textoAdd(&buffer, primeiro);
 
     int c = scannerLer(s);
     while (isalnum((unsigned char)c) || c == '_') {
-        textoAdd(&lx, c);
+        textoAdd(&buffer, c);
         c = scannerLer(s);
     }
     scannerDevolver(s, c);
 
     char canonico[16];
-    const char *chave = lx.dados;
-    const char *nomeReg = lx.dados + 1;
+    const char *chave = buffer.dados;
+    const char *nomeReg = buffer.dados + 1;
     size_t qtdDigitos = strspn(nomeReg, "0123456789");
 
     if (qtdDigitos > 0 && nomeReg[qtdDigitos] == '\0') {
@@ -499,85 +514,85 @@ void afdRegistrador(Scanner *s, int primeiro, Token *t){
                  strcmp(categoria, CAT_REGISTRADOR) == 0;
 
     if (!valido) {
-        erroRegistrar("ERRO_REGISTRADOR_INVALIDO", lx.dados, s->tokenLinha, s->tokenColuna);
-        montarToken(t, "TK_ERRO", lx.dados, s);
-    } else if (!rejeitarRotuloReservado(s, chave, lx.dados, t)) {
+        erroRegistrar("ERRO_REGISTRADOR_INVALIDO", buffer.dados, s->tokenLinha, s->tokenColuna);
+        montarToken(t, "TK_ERRO", buffer.dados, s);
+    } else if (!rejeitarRotuloReservado(s, chave, buffer.dados, t)) {
         tsBuscar(chave, NULL, NULL, s->tokenLinha, s->tokenColuna);
-        montarToken(t, TK_REGISTRADOR, lx.dados, s);
+        montarToken(t, TK_REGISTRADOR, buffer.dados, s);
     }
 
-    textoLiberar(&lx);
+    textoLiberar(&buffer);
 }
 
-static void numeroInvalido(Scanner *s, Texto *lx, int c, const char *tipo, Token *t,
+static void numeroInvalido(Scanner *s, Texto *buffer, int c, const char *tipo, Token *t,
                            int aceitaPonto){
     while (isalnum((unsigned char)c) || c == '_' || (aceitaPonto && c == '.')) {
-        textoAdd(lx, c);
+        textoAdd(buffer, c);
         c = scannerLer(s);
     }
     scannerDevolver(s, c);
-    erroRegistrar(tipo, lx->dados, s->tokenLinha, s->tokenColuna);
-    montarToken(t, "TK_ERRO", lx->dados, s);
+    erroRegistrar(tipo, buffer->dados, s->tokenLinha, s->tokenColuna);
+    montarToken(t, "TK_ERRO", buffer->dados, s);
 }
 
 void afdNumero(Scanner *s, int primeiro, Token *t){
-    Texto lx;
-    textoIniciar(&lx);
+    Texto buffer;
+    textoIniciar(&buffer);
 
-    textoAdd(&lx, primeiro);
+    textoAdd(&buffer, primeiro);
 
     /* Se comecou com '-', o proximo precisa ser digito */
     if (primeiro == '-') {
         int prox = scannerLer(s);
         if (!isdigit((unsigned char)prox)) {
             scannerDevolver(s, prox);
-            textoLiberar(&lx);
+            textoLiberar(&buffer);
             afdSimbolo(s, primeiro, t);
             return;
         }
-        textoAdd(&lx, prox);
+        textoAdd(&buffer, prox);
     }
 
     int c = scannerLer(s);
 
-    int ehZero = (strcmp(lx.dados, "0") == 0 || strcmp(lx.dados, "-0") == 0);
+    int ehZero = (strcmp(buffer.dados, "0") == 0 || strcmp(buffer.dados, "-0") == 0);
 
     if (ehZero && (c == 'x' || c == 'X')) {
-        textoAdd(&lx, c);
+        textoAdd(&buffer, c);
         c = scannerLer(s);
 
         int temHex = 0;
         while (isxdigit((unsigned char)c)) {
             temHex = 1;
-            textoAdd(&lx, c);
+            textoAdd(&buffer, c);
             c = scannerLer(s);
         }
 
         if (!temHex || isalnum((unsigned char)c) || c == '_' || c == '.') {
-            numeroInvalido(s, &lx, c, "ERRO_NUMERO_INVALIDO", t, 1);
+            numeroInvalido(s, &buffer, c, "ERRO_NUMERO_INVALIDO", t, 1);
         } else {
             scannerDevolver(s, c);
-            montarToken(t, "NUM_INT", lx.dados, s);
+            montarToken(t, "NUM_INT", buffer.dados, s);
         }
-        textoLiberar(&lx);
+        textoLiberar(&buffer);
         return;
     }
 
     while (isdigit((unsigned char)c)) {
-        textoAdd(&lx, c);
+        textoAdd(&buffer, c);
         c = scannerLer(s);
     }
 
     if (c == '.') {
-        numeroInvalido(s, &lx, c, "ERRO_NUMERO_INVALIDO", t, 1);
+        numeroInvalido(s, &buffer, c, "ERRO_NUMERO_INVALIDO", t, 1);
     } else if (isalpha((unsigned char)c) || c == '_') {
-        numeroInvalido(s, &lx, c, "ERRO_IDENTIFICADOR_MALFORMADO", t, 0);
+        numeroInvalido(s, &buffer, c, "ERRO_IDENTIFICADOR_MALFORMADO", t, 0);
     } else {
         scannerDevolver(s, c);
-        montarToken(t, "NUM_INT", lx.dados, s);
+        montarToken(t, "NUM_INT", buffer.dados, s);
     }
 
-    textoLiberar(&lx);
+    textoLiberar(&buffer);
 }
 
 
@@ -654,7 +669,7 @@ static int capTabela = 0;
 static int totalReservadas = 0;
 
 
-static int ehCategoriaReservada(const char *categoria){
+static int categoriaReservada(const char *categoria){
 
     return strcmp(categoria, CAT_INSTRUCAO)   == 0 ||
            strcmp(categoria, CAT_DIRETIVA)    == 0 ||
@@ -788,6 +803,10 @@ static void errosLiberar(void){
     qtdErros = capErros = 0;
 }
 
+int lexicoQtdErros(void){
+    return qtdErros;
+}
+
 void lexicoLiberar(void){
     tsLiberar();
     errosLiberar();
@@ -865,10 +884,8 @@ void tsInserir(const char *lexema, const char *categoria, int linha, int coluna)
 
     char *normalizado = copiarTexto(lexema);
 
-    if (ehCategoriaReservada(categoria)) {
-        for (char *p = normalizado; *p != '\0'; p++) {
-            *p = (char)tolower((unsigned char)*p);
-        }
+    if (categoriaReservada(categoria)) {
+        minusculas(lexema, normalizado, strlen(lexema) + 1);
     }
 
     if (indiceExato(normalizado) < 0) {

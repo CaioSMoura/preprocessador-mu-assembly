@@ -203,7 +203,7 @@ int preLinhaTerminaNoEOF(int linhaPre){
 
 static void semMemoria(void){
     fprintf(stderr, "ERRO: memoria insuficiente durante o pre-processamento.\n");
-    exit(EXIT_FAILURE);
+    exit(2);  
 }
 
 static long lerLinha(FILE *entrada, char **buf, size_t *cap, int *temQuebra){
