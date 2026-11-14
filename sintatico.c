@@ -231,7 +231,137 @@ int AnaliseSintatica(FILE *tokens, FILE *arvore, FILE *erros){
 }
 
 
-/* ===== Pessoa 4(VERSAO PROVISORIA): erros, recuperacao e arvore ===== */
+/* ===== Pessoa 4: erros, recuperacao e arvore ===== */
+
+No *noInterno(Parser *p, const char *nome){
+    No *n = calloc(1, sizeof(No));
+    if (n == NULL) semMemoria();
+    n->id = p->proximoId++;
+    n->rotulo = copiarStr(nome);
+    return n;
+}
+
+No *noFolha(Parser *p, const TokenSin *t){
+    No *n;
+    size_t tam = strlen(t->categoria) + strlen(t->lexema) + 4;
+    char *rotulo = malloc(tam);
+
+    if (rotulo == NULL) semMemoria();
+
+    if (t->lexema[0] == '\0' || strcmp(t->categoria, "EOL") == 0 || strcmp(t->categoria, "TK_EOF") == 0) {
+        snprintf(rotulo, tam, "%s", t->categoria);
+    } else {
+        snprintf(rotulo, tam, "%s\n%s", t->categoria, t->lexema);
+    }
+
+    n = noInterno(p, rotulo);
+    free(rotulo);
+    return n;
+}
+
+void erroSintatico(Parser *p, const char *esperado){
+    TokenSin *t = atual(p);
+
+    p->qtdErros++;
+    if (p->erros == NULL || t == NULL) return;
+
+    fprintf(p->erros, "Linha %d, coluna %d:\n", t->linha, t->coluna);
+
+    if (strcmp(t->categoria, "EOL") == 0) {
+        fprintf(p->erros, "Encontrado fim de linha (EOL); esperado %s.\n", esperado);
+    } else if (strcmp(t->categoria, "TK_EOF") == 0) {
+        fprintf(p->erros, "Encontrado TK_EOF; esperado %s.\n", esperado);
+    } else {
+        fprintf(p->erros, "Encontrado %s(\"%s\"); esperado %s.\n",
+                t->categoria, t->lexema, esperado);
+    }
+}
+
+No *esperar(Parser *p, const char *categoria, const char *esperado){
+    if (!verifica(p, categoria)) {
+        erroSintatico(p, esperado);
+        return NULL;
+    }
+    return noFolha(p, consumir(p));
+}
+
+void sincronizar(Parser *p){
+    while (!verifica(p, "EOL") && !verifica(p, "TK_EOF")) {
+        consumir(p);
+    }
+    if (verifica(p, "EOL")) {
+        consumir(p);
+    }
+}
+
+void adicionarFilho(No *pai, No *filho){
+    if (pai == NULL || filho == NULL) return;
+
+    if (pai->qtdFilhos == pai->capFilhos) {
+        int novaCap = (pai->capFilhos == 0) ? 4 : pai->capFilhos * 2;
+        No **novo = realloc(pai->filhos, (size_t)novaCap * sizeof(No *));
+        if (novo == NULL) semMemoria();
+        pai->filhos = novo;
+        pai->capFilhos = novaCap;
+    }
+    pai->filhos[pai->qtdFilhos++] = filho;
+}
+
+void liberarArvore(No *n){
+    if (n == NULL) return;
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        liberarArvore(n->filhos[i]);
+    }
+    free(n->filhos);
+    free(n->rotulo);
+    free(n);
+}
+
+static void gravarRotulo(FILE *out, const char *s){
+    for (; *s != '\0'; s++) {
+        if (*s == '"' || *s == '\\') {
+            fputc('\\', out);
+            fputc(*s, out);
+        } else if (*s == '\n') {
+            fputs("\\n", out);
+        } else {
+            fputc(*s, out);
+        }
+    }
+}
+
+static void gravarNos(FILE *out, No *n){
+    if (n == NULL) return;
+    fprintf(out, "  n%d [label=\"", n->id);
+    gravarRotulo(out, n->rotulo);
+    fprintf(out, "\"];\n");
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        gravarNos(out, n->filhos[i]);
+    }
+}
+
+static void gravarArestas(FILE *out, No *n){
+    if (n == NULL) return;
+    for (int i = 0; i < n->qtdFilhos; i++) {
+        if (n->filhos[i] != NULL) {
+            fprintf(out, "  n%d -> n%d;\n", n->id, n->filhos[i]->id);
+            gravarArestas(out, n->filhos[i]);
+        }
+    }
+}
+
+void gravarDot(FILE *out, No *raiz){
+    if (out == NULL) return;
+    fprintf(out, "digraph ArvoreSintatica {\n");
+    fprintf(out, "  graph [ordering=out];\n");
+    fprintf(out, "  node [shape=box];\n");
+    fprintf(out, "  edge [arrowhead=none];\n");
+    if (raiz != NULL) {
+        gravarNos(out, raiz);
+        gravarArestas(out, raiz);
+    }
+    fprintf(out, "}\n");
+}
 
 No *noInterno(Parser *p, const char *nome){
     No *n = calloc(1, sizeof(No));
