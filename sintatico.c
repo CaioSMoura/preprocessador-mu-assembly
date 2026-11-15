@@ -363,141 +363,248 @@ void gravarDot(FILE *out, No *raiz){
     fprintf(out, "}\n");
 }
 
-No *noInterno(Parser *p, const char *nome){
-    No *n = calloc(1, sizeof(No));
-    if (n == NULL) semMemoria();
-    n->id = p->proximoId++;
-    n->rotulo = copiarStr(nome);
-    return n;
+/* ===== Pessoa 2: programa, secoes, rotulos e diretivas ===== */
+
+/* Categorias do léxico usadas neste bloco.
+   Se o .lex usar outro nome, é só ajustar aqui. */
+#define CAT_DIR_DATA    "DIR_DATA"
+#define CAT_DIR_TEXT    "DIR_TEXT"
+#define CAT_DIR_GLOBL   "DIR_GLOBL"
+#define CAT_DIR_WORD    "DIR_WORD"
+#define CAT_DIR_HALF    "DIR_HALF"
+#define CAT_DIR_BYTE    "DIR_BYTE"
+#define CAT_DIR_ASCII   "DIR_ASCII"
+#define CAT_DIR_ASCIIZ  "DIR_ASCIIZ"
+#define CAT_DIR_SPACE   "DIR_SPACE"
+#define CAT_DIR_ALIGN   "DIR_ALIGN"
+#define CAT_ID          "ID"
+#define CAT_NUM_INT     "NUM_INT"
+#define CAT_STRING      "STRING"
+#define CAT_VIRGULA     "SMB_COM"
+#define CAT_DOIS_PONTOS "SMB_COL"
+#define CAT_EOL         "EOL"
+#define CAT_EOF         "TK_EOF"
+
+/* ---------- auxiliares (só deste bloco) ---------- */
+
+/* Anexa o filho se ele existir. Devolve 1 se anexou, 0 se filho era NULL. */
+static int anexar(No *pai, No *filho) {
+    if (!filho) return 0;
+    adicionarFilho(pai, filho);
+    return 1;
 }
 
-No *noFolha(Parser *p, const TokenSin *t){
-    No *n;
-    size_t tam = strlen(t->categoria) + strlen(t->lexema) + 2;
-    char *rotulo = malloc(tam);
-
-    if (rotulo == NULL) semMemoria();
-
-    if (t->lexema[0] == '\0') {
-        snprintf(rotulo, tam, "%s", t->categoria);
-    } else {
-        snprintf(rotulo, tam, "%s\n%s", t->categoria, t->lexema);
-    }
-
-    n = noInterno(p, rotulo);
-    free(rotulo);
-    return n;
+/* Libera um nó parcial (com os filhos já anexados) e devolve NULL. */
+static No *falha(No *n) {
+    liberarArvore(n);
+    return NULL;
 }
 
-void erroSintatico(Parser *p, const char *esperado){
+/* Consome o token atual, seja qual for a categoria (já verificada antes). */
+static No *consumirAtual(Parser *p) {
+    return esperar(p, atual(p)->categoria, atual(p)->categoria);
+}
+
+static int ehInstrucao(Parser *p) {
     TokenSin *t = atual(p);
-
-    p->qtdErros++;
-    fprintf(p->erros, "Linha %d, coluna %d:\nEncontrado %s(\"%s\"); esperado %s.\n",
-            t->linha, t->coluna, t->categoria, t->lexema, esperado);
+    return t && strncmp(t->categoria, "INS_", 4) == 0;
 }
 
-No *esperar(Parser *p, const char *categoria, const char *esperado){
-    if (!verifica(p, categoria)) {
-        erroSintatico(p, esperado);
-        return NULL;
-    }
-    return noFolha(p, consumir(p));
+static int ehDiretivaInteiros(Parser *p) {
+    return verifica(p, CAT_DIR_WORD) || verifica(p, CAT_DIR_HALF) ||
+           verifica(p, CAT_DIR_BYTE) || verifica(p, CAT_DIR_SPACE) ||
+           verifica(p, CAT_DIR_ALIGN);
 }
 
-void sincronizar(Parser *p){
-    while (!verifica(p, "EOL") && !verifica(p, "TK_EOF")) {
-        consumir(p);
-    }
-    if (verifica(p, "EOL")) {
-        consumir(p);
-    }
+static int ehDiretivaString(Parser *p) {
+    return verifica(p, CAT_DIR_ASCII) || verifica(p, CAT_DIR_ASCIIZ);
 }
 
-void adicionarFilho(No *pai, No *filho){
-    if (pai == NULL || filho == NULL) return;
-
-    if (pai->qtdFilhos == pai->capFilhos) {
-        int novaCap = (pai->capFilhos == 0) ? 4 : pai->capFilhos * 2;
-        No **novo = realloc(pai->filhos, (size_t)novaCap * sizeof(No *));
-        if (novo == NULL) semMemoria();
-        pai->filhos = novo;
-        pai->capFilhos = novaCap;
-    }
-    pai->filhos[pai->qtdFilhos++] = filho;
+/* As repetições de linha só param em DIR_DATA, DIR_TEXT ou TK_EOF. */
+static int fimDeSecao(Parser *p) {
+    return verifica(p, CAT_DIR_DATA) || verifica(p, CAT_DIR_TEXT) ||
+           verifica(p, CAT_EOF);
 }
 
-void liberarArvore(No *n){
-    if (n == NULL) return;
-    for (int i = 0; i < n->qtdFilhos; i++) {
-        liberarArvore(n->filhos[i]);
+/* ---------- diretivas ---------- */
+
+/* <lista_inteiros> ::= NUM_INT { SMB_COM NUM_INT }
+   Lista terminada em vírgula gera erro no NUM_INT que falta. */
+No *lista_inteiros(Parser *p) {
+    No *n = noInterno(p, "<lista_inteiros>");
+    if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) return falha(n);
+    while (verifica(p, CAT_VIRGULA)) {
+        anexar(n, consumirAtual(p));
+        if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) return falha(n);
     }
-    free(n->filhos);
-    free(n->rotulo);
-    free(n);
+    return n;
 }
 
-static void gravarRotulo(FILE *out, const char *s){
-    for (; *s != '\0'; s++) {
-        if (*s == '"' || *s == '\\') {
-            fputc('\\', out);
-            fputc(*s, out);
-        } else if (*s == '\n') {
-            fputs("\\n", out);
-        } else {
-            fputc(*s, out);
-        }
+/* <diretiva_inteiros> ::= (DIR_WORD | DIR_HALF | DIR_BYTE) <lista_inteiros>
+                         | (DIR_SPACE | DIR_ALIGN) NUM_INT */
+No *diretiva_inteiros(Parser *p) {
+    No *n = noInterno(p, "<diretiva_inteiros>");
+    int comLista = verifica(p, CAT_DIR_WORD) || verifica(p, CAT_DIR_HALF) ||
+                   verifica(p, CAT_DIR_BYTE);
+    if (!anexar(n, consumirAtual(p))) return falha(n);
+    if (comLista) {
+        if (!anexar(n, lista_inteiros(p))) return falha(n);
+    } else if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) {
+        return falha(n);
     }
+    return n;
 }
 
-static void gravarNos(FILE *out, No *n){
-    fprintf(out, "  n%d [label=\"", n->id);
-    gravarRotulo(out, n->rotulo);
-    fprintf(out, "\"];\n");
-    for (int i = 0; i < n->qtdFilhos; i++) {
-        gravarNos(out, n->filhos[i]);
-    }
+/* <diretiva_string> ::= (DIR_ASCII | DIR_ASCIIZ) STRING */
+No *diretiva_string(Parser *p) {
+    No *n = noInterno(p, "<diretiva_string>");
+    if (!anexar(n, consumirAtual(p))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_STRING, "STRING"))) return falha(n);
+    return n;
 }
 
-static void gravarArestas(FILE *out, No *n){
-    for (int i = 0; i < n->qtdFilhos; i++) {
-        fprintf(out, "  n%d -> n%d;\n", n->id, n->filhos[i]->id);
-        gravarArestas(out, n->filhos[i]);
-    }
+/* <diretiva_dados> ::= <diretiva_inteiros> | <diretiva_string> */
+No *diretiva_dados(Parser *p) {
+    No *n = noInterno(p, "<diretiva_dados>");
+    No *f = ehDiretivaString(p) ? diretiva_string(p) : diretiva_inteiros(p);
+    if (!anexar(n, f)) return falha(n);
+    return n;
 }
 
-void gravarDot(FILE *out, No *raiz){
-    fprintf(out, "digraph ArvoreSintatica {\n");
-    fprintf(out, "  graph [ordering=out];\n");
-    fprintf(out, "  node [shape=box, fontname=\"Arial\"];\n");
-    fprintf(out, "  edge [arrowhead=none];\n");
-    if (raiz != NULL) {
-        gravarNos(out, raiz);
-        gravarArestas(out, raiz);
-    }
-    fprintf(out, "}\n");
+/* <diretiva_global> ::= DIR_GLOBL ID   (vale em .data e em .text) */
+No *diretiva_global(Parser *p) {
+    No *n = noInterno(p, "<diretiva_global>");
+    if (!anexar(n, esperar(p, CAT_DIR_GLOBL, "DIR_GLOBL"))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_ID, "ID"))) return falha(n);
+    return n;
 }
 
+/* ---------- rótulo ---------- */
 
-/* ===== Pessoa 2(VERSAO PROVISORIA): programa, secoes, rotulos e diretivas ===== */
+/* <rotulo> ::= ID SMB_COL   (rótulo sem ':' gera erro no ':') */
+No *rotulo(Parser *p) {
+    No *n = noInterno(p, "<rotulo>");
+    if (!anexar(n, esperar(p, CAT_ID, "ID"))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_DOIS_PONTOS, "SMB_COL(\":\")"))) return falha(n);
+    return n;
+}
 
-No *programa(Parser *p){
-    No *raiz;
+/* ---------- linhas ---------- */
 
-    if (!verifica(p, "DIR_DATA") && !verifica(p, "DIR_TEXT")) {
+/* <linha_dados> ::= [<rotulo>] [<diretiva_global> | <diretiva_dados>] EOL
+   Em caso de erro: libera o parcial, sincroniza e devolve NULL. */
+No *linha_dados(Parser *p) {
+    No *n = noInterno(p, "<linha_dados>");
+    int temRotulo = 0;
+
+    if (verifica(p, CAT_ID)) {
+        if (!anexar(n, rotulo(p))) goto erro;
+        temRotulo = 1;
+    }
+    if (verifica(p, CAT_DIR_GLOBL)) {
+        if (!anexar(n, diretiva_global(p))) goto erro;
+    } else if (ehDiretivaInteiros(p) || ehDiretivaString(p)) {
+        if (!anexar(n, diretiva_dados(p))) goto erro;
+    } else if (!verifica(p, CAT_EOL)) {
+        erroSintatico(p, temRotulo ? "diretiva de dados ou EOL"
+                                   : "rotulo ou diretiva de dados");
+        goto erro;
+    }
+    if (!anexar(n, esperar(p, CAT_EOL, "EOL"))) goto erro;
+    return n;
+
+erro:
+    liberarArvore(n);
+    sincronizar(p);
+    return NULL;
+}
+
+/* <linha_codigo> ::= [<rotulo>] [<diretiva_global> | <instrucao>] EOL
+   A instrução (Pessoa 3) termina ANTES do EOL; quem consome o EOL é esta função. */
+No *linha_codigo(Parser *p) {
+    No *n = noInterno(p, "<linha_codigo>");
+    int temRotulo = 0;
+
+    if (verifica(p, CAT_ID)) {
+        if (!anexar(n, rotulo(p))) goto erro;
+        temRotulo = 1;
+    }
+    if (verifica(p, CAT_DIR_GLOBL)) {
+        if (!anexar(n, diretiva_global(p))) goto erro;
+    } else if (ehInstrucao(p)) {
+        if (!anexar(n, instrucao(p))) goto erro;
+    } else if (!verifica(p, CAT_EOL)) {
+        erroSintatico(p, temRotulo ? "instrucao ou EOL"
+                                   : "rotulo ou instrucao");
+        goto erro;
+    }
+    if (!anexar(n, esperar(p, CAT_EOL, "EOL"))) goto erro;
+    return n;
+
+erro:
+    liberarArvore(n);
+    sincronizar(p);
+    return NULL;
+}
+
+/* ---------- seções ---------- */
+
+/* <secao_dados> ::= DIR_DATA EOL { <linha_dados> } */
+No *secao_dados(Parser *p) {
+    No *n = noInterno(p, "<secao_dados>");
+    anexar(n, esperar(p, CAT_DIR_DATA, "DIR_DATA"));
+    if (!anexar(n, esperar(p, CAT_EOL, "EOL"))) sincronizar(p);
+    while (!fimDeSecao(p)) {
+        int antes = p->pos;
+        anexar(n, linha_dados(p));
+        if (p->pos == antes) p->pos++;   /* segurança: sempre avança */
+    }
+    return n;
+}
+
+/* <secao_codigo> ::= DIR_TEXT EOL { <linha_codigo> } */
+No *secao_codigo(Parser *p) {
+    No *n = noInterno(p, "<secao_codigo>");
+    anexar(n, esperar(p, CAT_DIR_TEXT, "DIR_TEXT"));
+    if (!anexar(n, esperar(p, CAT_EOL, "EOL"))) sincronizar(p);
+    while (!fimDeSecao(p)) {
+        int antes = p->pos;
+        anexar(n, linha_codigo(p));
+        if (p->pos == antes) p->pos++;   /* segurança: sempre avança */
+    }
+    return n;
+}
+
+/* <secao> ::= <secao_dados> | <secao_codigo> */
+No *secao(Parser *p) {
+    No *n = noInterno(p, "<secao>");
+    No *f;
+    if (verifica(p, CAT_DIR_DATA))      f = secao_dados(p);
+    else if (verifica(p, CAT_DIR_TEXT)) f = secao_codigo(p);
+    else {
         erroSintatico(p, "DIR_DATA(\".data\") ou DIR_TEXT(\".text\")");
+        liberarArvore(n);
+        sincronizar(p);
         return NULL;
     }
+    if (!anexar(n, f)) return falha(n);
+    return n;
+}
 
-    raiz = noInterno(p, "<programa>");
-    while (!verifica(p, "TK_EOF")) {
-        adicionarFilho(raiz, noFolha(p, consumir(p)));
+/* <programa> ::= <secao> { <secao> } TK_EOF
+   Sempre devolve a raiz; quem decide se há erro é p->qtdErros. */
+No *programa(Parser *p) {
+    No *raiz = noInterno(p, "<programa>");
+    int secoes = 0;
+    while (!verifica(p, CAT_EOF)) {
+        if (anexar(raiz, secao(p))) secoes++;
     }
-    adicionarFilho(raiz, noFolha(p, consumir(p)));
-
+    if (secoes == 0 && p->qtdErros == 0)      /* arquivo sem nenhuma seção */
+        erroSintatico(p, "DIR_DATA(\".data\") ou DIR_TEXT(\".text\")");
+    anexar(raiz, esperar(p, CAT_EOF, "TK_EOF"));
     return raiz;
 }
-
+/* ===== fim do bloco da Pessoa 2 ===== */
 
 /* ===== Pessoa 3(VERSAO PROVISORIA): instrucoes ===== */
 
