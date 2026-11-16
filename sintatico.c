@@ -608,7 +608,263 @@ No *programa(Parser *p) {
 
 /* ===== Pessoa 3(VERSAO PROVISORIA): instrucoes ===== */
 
-No *instrucao(Parser *p){
-    erroSintatico(p, "instrucao");
-    return NULL;
+#define CAT_REG    "REG"
+#define CAT_ABRE   "SMB_OPA"
+#define CAT_FECHA  "SMB_CPA"
+
+#define ESP_REG    "REG"
+#define ESP_VIRG   "SMB_COM(\",\")"
+#define ESP_ABRE   "SMB_OPA(\"(\")"
+#define ESP_FECHA  "SMB_CPA(\")\")"
+#define ESP_NUM    "NUM_INT"
+#define ESP_ID     "ID"
+
+/* Grupos de instrucao (um por funcao instrucao_*) */
+enum {
+    GRP_NENHUM = 0, GRP_TRES_REG, GRP_DOIS_REG, GRP_UM_REG, GRP_IMEDIATO,
+    GRP_DESLOCAMENTO, GRP_LI, GRP_LA, GRP_MEMORIA, GRP_DESVIO, GRP_SALTO,
+    GRP_SEM_OPERANDOS
+};
+
+typedef struct { const char *categoria; int grupo; } MnemonicoGrupo;
+
+/* Os mnemonicos reconhecidos pelo lexico (36 no total, conferir com INSTRUCOES[] em lexico.c). */
+static const MnemonicoGrupo MNEMONICOS[] = {
+    /* REG , REG , REG */
+    {"INS_ADD", GRP_TRES_REG}, {"INS_ADDU", GRP_TRES_REG}, {"INS_SUB", GRP_TRES_REG},
+    {"INS_SUBU", GRP_TRES_REG}, {"INS_MUL", GRP_TRES_REG}, {"INS_AND", GRP_TRES_REG},
+    {"INS_OR", GRP_TRES_REG}, {"INS_XOR", GRP_TRES_REG}, {"INS_NOR", GRP_TRES_REG},
+    {"INS_SLT", GRP_TRES_REG},
+    /* REG , REG */
+    {"INS_DIV", GRP_DOIS_REG}, {"INS_MOVE", GRP_DOIS_REG},
+    /* REG */
+    {"INS_MFHI", GRP_UM_REG}, {"INS_MFLO", GRP_UM_REG}, {"INS_JR", GRP_UM_REG},
+    /* REG , REG , NUM_INT */
+    {"INS_ADDI", GRP_IMEDIATO},
+    {"INS_SLL", GRP_DESLOCAMENTO}, {"INS_SRL", GRP_DESLOCAMENTO},
+    /* REG , NUM_INT  /  REG , ID */
+    {"INS_LI", GRP_LI}, {"INS_LA", GRP_LA},
+    /* REG , endereco */
+    {"INS_LW", GRP_MEMORIA}, {"INS_SW", GRP_MEMORIA}, {"INS_LB", GRP_MEMORIA},
+    {"INS_SB", GRP_MEMORIA}, {"INS_LH", GRP_MEMORIA}, {"INS_SH", GRP_MEMORIA},
+    /* REG , REG , ID */
+    {"INS_BEQ", GRP_DESVIO}, {"INS_BNE", GRP_DESVIO}, {"INS_BLT", GRP_DESVIO},
+    {"INS_BGT", GRP_DESVIO}, {"INS_BLE", GRP_DESVIO}, {"INS_BGE", GRP_DESVIO},
+    /* ID */
+    {"INS_J", GRP_SALTO}, {"INS_JAL", GRP_SALTO},
+    /* sem operandos */
+    {"INS_SYSCALL", GRP_SEM_OPERANDOS}, {"INS_NOP", GRP_SEM_OPERANDOS}
+};
+
+static int grupoDoMnemonico(const char *categoria){
+    for (size_t i = 0; i < sizeof MNEMONICOS / sizeof MNEMONICOS[0]; i++) {
+        if (strcmp(MNEMONICOS[i].categoria, categoria) == 0) return MNEMONICOS[i].grupo;
+    }
+    return GRP_NENHUM;
 }
+
+/* Anexa "SMB_COM REG" ao pai: "," seguida de registrador. */
+static int virgulaEReg(Parser *p, No *pai){
+    return anexar(pai, esperar(p, CAT_VIRGULA, ESP_VIRG)) &&
+           anexar(pai, esperar(p, CAT_REG, ESP_REG));
+}
+
+/* ---------- operandos ---------- */
+
+/* <op_tres_registradores> ::= REG SMB_COM REG SMB_COM REG */
+static No *op_tres_registradores(Parser *p){
+    No *n = noInterno(p, "<op_tres_registradores>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    return n;
+}
+
+/* <op_dois_registradores> ::= REG SMB_COM REG */
+static No *op_dois_registradores(Parser *p){
+    No *n = noInterno(p, "<op_dois_registradores>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    return n;
+}
+
+/* <op_um_registrador> ::= REG */
+static No *op_um_registrador(Parser *p){
+    No *n = noInterno(p, "<op_um_registrador>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    return n;
+}
+
+/* <op_deslocamento> ::= REG SMB_COM REG SMB_COM NUM_INT */
+static No *op_deslocamento(Parser *p){
+    No *n = noInterno(p, "<op_deslocamento>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <endereco> ::= ID | NUM_INT SMB_OPA REG SMB_CPA */
+static No *endereco(Parser *p){
+    No *n = noInterno(p, "<endereco>");
+    if (verifica(p, CAT_ID)) {
+        anexar(n, consumirAtual(p));
+        return n;
+    }
+    if (!verifica(p, CAT_NUM_INT)) {
+        erroSintatico(p, "ID ou NUM_INT");
+        return falha(n);
+    }
+    anexar(n, consumirAtual(p));
+    if (!anexar(n, esperar(p, CAT_ABRE, ESP_ABRE))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_FECHA, ESP_FECHA))) return falha(n);
+    return n;
+}
+
+/* <op_memoria> ::= REG SMB_COM <endereco> */
+static No *op_memoria(Parser *p){
+    No *n = noInterno(p, "<op_memoria>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, endereco(p))) return falha(n);
+    return n;
+}
+
+/* <op_desvio> ::= REG SMB_COM REG SMB_COM ID */
+static No *op_desvio(Parser *p){
+    No *n = noInterno(p, "<op_desvio>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
+    return n;
+}
+
+/* <op_salto> ::= ID */
+static No *op_salto(Parser *p){
+    No *n = noInterno(p, "<op_salto>");
+    if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
+    return n;
+}
+
+/* ---------- grupos de instrucao ----------
+   Cada funcao consome o mnemonico (token atual, ja verificado por instrucao())
+   e depois os operandos. Nenhuma consome o EOL: isso e da linha_codigo(). */
+
+/* Consome o mnemonico e devolve o no do grupo (nome) ja com o mnemonico como filho. */
+static No *inicioGrupo(Parser *p, const char *nome){
+    No *n = noInterno(p, nome);
+    anexar(n, consumirAtual(p));
+    return n;
+}
+
+/* <instrucao_tres_registradores> ::= (ADD|ADDU|SUB|SUBU|MUL|AND|OR|XOR|NOR|SLT) <op_tres_registradores> */
+static No *instrucao_tres_registradores(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_tres_registradores>");
+    if (!anexar(n, op_tres_registradores(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_dois_registradores> ::= (DIV|MOVE) <op_dois_registradores> */
+static No *instrucao_dois_registradores(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_dois_registradores>");
+    if (!anexar(n, op_dois_registradores(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_um_registrador> ::= (MFHI|MFLO|JR) <op_um_registrador> */
+static No *instrucao_um_registrador(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_um_registrador>");
+    if (!anexar(n, op_um_registrador(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_imediato> ::= INS_ADDI REG SMB_COM REG SMB_COM NUM_INT */
+static No *instrucao_imediato(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_imediato>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <instrucao_deslocamento> ::= (SLL|SRL) <op_deslocamento> */
+static No *instrucao_deslocamento(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_deslocamento>");
+    if (!anexar(n, op_deslocamento(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_li> ::= INS_LI REG SMB_COM NUM_INT */
+static No *instrucao_li(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_li>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <instrucao_la> ::= INS_LA REG SMB_COM ID */
+static No *instrucao_la(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_la>");
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
+    return n;
+}
+
+/* <instrucao_memoria> ::= (LW|SW|LB|SB|LH|SH) <op_memoria> */
+static No *instrucao_memoria(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_memoria>");
+    if (!anexar(n, op_memoria(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_desvio> ::= (BEQ|BNE|BLT|BGT|BLE|BGE) <op_desvio> */
+static No *instrucao_desvio(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_desvio>");
+    if (!anexar(n, op_desvio(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_salto> ::= (J|JAL) <op_salto> */
+static No *instrucao_salto(Parser *p){
+    No *n = inicioGrupo(p, "<instrucao_salto>");
+    if (!anexar(n, op_salto(p))) return falha(n);
+    return n;
+}
+
+/* <instrucao_sem_operandos> ::= INS_SYSCALL | INS_NOP */
+static No *instrucao_sem_operandos(Parser *p){
+    return inicioGrupo(p, "<instrucao_sem_operandos>");
+}
+
+/* <instrucao> ::= <instrucao_...>   (grupo escolhido pelo mnemonico atual) */
+No *instrucao(Parser *p){
+    No *n = noInterno(p, "<instrucao>");
+    No *f = NULL;
+
+    switch (grupoDoMnemonico(atual(p)->categoria)) {
+        case GRP_TRES_REG:      f = instrucao_tres_registradores(p);  break;
+        case GRP_DOIS_REG:      f = instrucao_dois_registradores(p);  break;
+        case GRP_UM_REG:        f = instrucao_um_registrador(p);      break;
+        case GRP_IMEDIATO:      f = instrucao_imediato(p);            break;
+        case GRP_DESLOCAMENTO:  f = instrucao_deslocamento(p);        break;
+        case GRP_LI:            f = instrucao_li(p);                  break;
+        case GRP_LA:            f = instrucao_la(p);                  break;
+        case GRP_MEMORIA:       f = instrucao_memoria(p);             break;
+        case GRP_DESVIO:        f = instrucao_desvio(p);              break;
+        case GRP_SALTO:         f = instrucao_salto(p);               break;
+        case GRP_SEM_OPERANDOS: f = instrucao_sem_operandos(p);       break;
+        default:
+            erroSintatico(p, "instrucao");
+            return falha(n);
+    }
+
+    if (!anexar(n, f)) return falha(n);
+    return n;
+}
+/* ===== fim do bloco da Pessoa 3 ===== */
