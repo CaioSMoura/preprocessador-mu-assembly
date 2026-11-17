@@ -426,8 +426,8 @@ static int fimDeSecao(Parser *p) {
 
 /* ---------- diretivas ---------- */
 
-/* <lista_inteiros> ::= NUM_INT { SMB_COM NUM_INT }
-   Lista terminada em vírgula gera erro no NUM_INT que falta. */
+/* <lista_inteiros> ::= NUM_INT { "," NUM_INT }
+   Lista terminada em virgula gera erro no NUM_INT que falta. */
 No *lista_inteiros(Parser *p) {
     No *n = noInterno(p, "<lista_inteiros>");
     if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) return falha(n);
@@ -438,34 +438,37 @@ No *lista_inteiros(Parser *p) {
     return n;
 }
 
-/* <diretiva_inteiros> ::= (DIR_WORD | DIR_HALF | DIR_BYTE) <lista_inteiros>
-                         | (DIR_SPACE | DIR_ALIGN) NUM_INT */
+/* <diretiva_inteiros> ::= ".word" | ".half" | ".byte" */
 No *diretiva_inteiros(Parser *p) {
     No *n = noInterno(p, "<diretiva_inteiros>");
-    int comLista = verifica(p, CAT_DIR_WORD) || verifica(p, CAT_DIR_HALF) ||
-                   verifica(p, CAT_DIR_BYTE);
-    if (!anexar(n, consumirAtual(p))) return falha(n);
-    if (comLista) {
-        if (!anexar(n, lista_inteiros(p))) return falha(n);
-    } else if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) {
-        return falha(n);
-    }
+    anexar(n, consumirAtual(p));
     return n;
 }
 
-/* <diretiva_string> ::= (DIR_ASCII | DIR_ASCIIZ) STRING */
+/* <diretiva_string> ::= ".ascii" | ".asciiz" */
 No *diretiva_string(Parser *p) {
     No *n = noInterno(p, "<diretiva_string>");
-    if (!anexar(n, consumirAtual(p))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_STRING, "STRING"))) return falha(n);
+    anexar(n, consumirAtual(p));
     return n;
 }
 
-/* <diretiva_dados> ::= <diretiva_inteiros> | <diretiva_string> */
+/* <diretiva_dados> ::= <diretiva_inteiros> <lista_inteiros>
+                      | <diretiva_string> STRING
+                      | ".space" NUM_INT
+                      | ".align" NUM_INT */
 No *diretiva_dados(Parser *p) {
     No *n = noInterno(p, "<diretiva_dados>");
-    No *f = ehDiretivaString(p) ? diretiva_string(p) : diretiva_inteiros(p);
-    if (!anexar(n, f)) return falha(n);
+
+    if (verifica(p, CAT_DIR_WORD) || verifica(p, CAT_DIR_HALF) || verifica(p, CAT_DIR_BYTE)) {
+        anexar(n, diretiva_inteiros(p));
+        if (!anexar(n, lista_inteiros(p))) return falha(n);
+    } else if (ehDiretivaString(p)) {
+        anexar(n, diretiva_string(p));
+        if (!anexar(n, esperar(p, CAT_STRING, "STRING"))) return falha(n);
+    } else {
+        anexar(n, consumirAtual(p));   /* .space ou .align */
+        if (!anexar(n, esperar(p, CAT_NUM_INT, "NUM_INT"))) return falha(n);
+    }
     return n;
 }
 
@@ -489,7 +492,7 @@ No *rotulo(Parser *p) {
 
 /* ---------- linhas ---------- */
 
-/* <linha_dados> ::= [<rotulo>] [<diretiva_global> | <diretiva_dados>] EOL
+/* <linha_dados> ::= <rotulo> [ <diretiva_dados> ] EOL | <diretiva_dados> EOL | <diretiva_global> EOL
    Em caso de erro: libera o parcial, sincroniza e devolve NULL. */
 No *linha_dados(Parser *p) {
     No *n = noInterno(p, "<linha_dados>");
@@ -499,7 +502,7 @@ No *linha_dados(Parser *p) {
         if (!anexar(n, rotulo(p))) goto erro;
         temRotulo = 1;
     }
-    if (verifica(p, CAT_DIR_GLOBL)) {
+    if (!temRotulo && verifica(p, CAT_DIR_GLOBL)) {   /* .globl nao aceita rotulo */
         if (!anexar(n, diretiva_global(p))) goto erro;
     } else if (ehDiretivaInteiros(p) || ehDiretivaString(p)) {
         if (!anexar(n, diretiva_dados(p))) goto erro;
@@ -517,7 +520,7 @@ erro:
     return NULL;
 }
 
-/* <linha_codigo> ::= [<rotulo>] [<diretiva_global> | <instrucao>] EOL */
+/* <linha_codigo> ::= <rotulo> [ <instrucao> ] EOL | <instrucao> EOL | <diretiva_global> EOL */
 No *linha_codigo(Parser *p) {
     No *n = noInterno(p, "<linha_codigo>");
     int temRotulo = 0;
@@ -526,7 +529,7 @@ No *linha_codigo(Parser *p) {
         if (!anexar(n, rotulo(p))) goto erro;
         temRotulo = 1;
     }
-    if (verifica(p, CAT_DIR_GLOBL)) {
+    if (!temRotulo && verifica(p, CAT_DIR_GLOBL)) {   /* .globl nao aceita rotulo */
         if (!anexar(n, diretiva_global(p))) goto erro;
     } else if (ehInstrucao(p)) {
         if (!anexar(n, instrucao(p))) goto erro;
@@ -664,43 +667,51 @@ static int virgulaEReg(Parser *p, No *pai){
            anexar(pai, esperar(p, CAT_REG, ESP_REG));
 }
 
-/* ---------- operandos ---------- */
+/* ---------- operacoes (mnemonicos) ----------
+   Na gramatica, cada <op_...> e o proprio mnemonico, ja verificado por instrucao(). */
 
-/* <op_tres_registradores> ::= REG SMB_COM REG SMB_COM REG */
+static No *opMnemonico(Parser *p, const char *nome){
+    No *n = noInterno(p, nome);
+    anexar(n, consumirAtual(p));
+    return n;
+}
+
+/* <op_tres_registradores> ::= "add" | "addu" | "sub" | "subu" | "mul" | "and" | "or" | "xor" | "nor" | "slt" */
 static No *op_tres_registradores(Parser *p){
-    No *n = noInterno(p, "<op_tres_registradores>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!virgulaEReg(p, n)) return falha(n);
-    if (!virgulaEReg(p, n)) return falha(n);
-    return n;
+    return opMnemonico(p, "<op_tres_registradores>");
 }
 
-/* <op_dois_registradores> ::= REG SMB_COM REG */
+/* <op_dois_registradores> ::= "move" | "div" */
 static No *op_dois_registradores(Parser *p){
-    No *n = noInterno(p, "<op_dois_registradores>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!virgulaEReg(p, n)) return falha(n);
-    return n;
+    return opMnemonico(p, "<op_dois_registradores>");
 }
 
-/* <op_um_registrador> ::= REG */
+/* <op_um_registrador> ::= "mflo" | "mfhi" | "jr" */
 static No *op_um_registrador(Parser *p){
-    No *n = noInterno(p, "<op_um_registrador>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    return n;
+    return opMnemonico(p, "<op_um_registrador>");
 }
 
-/* <op_deslocamento> ::= REG SMB_COM REG SMB_COM NUM_INT */
+/* <op_deslocamento> ::= "sll" | "srl" */
 static No *op_deslocamento(Parser *p){
-    No *n = noInterno(p, "<op_deslocamento>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!virgulaEReg(p, n)) return falha(n);
-    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
-    return n;
+    return opMnemonico(p, "<op_deslocamento>");
 }
 
-/* <endereco> ::= ID | NUM_INT SMB_OPA REG SMB_CPA */
+/* <op_memoria> ::= "lw" | "sw" | "lb" | "sb" | "lh" | "sh" */
+static No *op_memoria(Parser *p){
+    return opMnemonico(p, "<op_memoria>");
+}
+
+/* <op_desvio> ::= "beq" | "bne" | "blt" | "ble" | "bgt" | "bge" */
+static No *op_desvio(Parser *p){
+    return opMnemonico(p, "<op_desvio>");
+}
+
+/* <op_salto> ::= "j" | "jal" */
+static No *op_salto(Parser *p){
+    return opMnemonico(p, "<op_salto>");
+}
+
+/* <endereco> ::= ID | NUM_INT "(" REG ")" */
 static No *endereco(Parser *p){
     No *n = noInterno(p, "<endereco>");
     if (verifica(p, CAT_ID)) {
@@ -718,18 +729,92 @@ static No *endereco(Parser *p){
     return n;
 }
 
-/* <op_memoria> ::= REG SMB_COM <endereco> */
-static No *op_memoria(Parser *p){
-    No *n = noInterno(p, "<op_memoria>");
+/* ---------- grupos de instrucao ----------
+   Nenhuma funcao consome o EOL: isso e da linha_codigo(). */
+
+/* <instrucao_tres_registradores> ::= <op_tres_registradores> REG "," REG "," REG */
+static No *instrucao_tres_registradores(Parser *p){
+    No *n = noInterno(p, "<instrucao_tres_registradores>");
+    anexar(n, op_tres_registradores(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    return n;
+}
+
+/* <instrucao_dois_registradores> ::= <op_dois_registradores> REG "," REG */
+static No *instrucao_dois_registradores(Parser *p){
+    No *n = noInterno(p, "<instrucao_dois_registradores>");
+    anexar(n, op_dois_registradores(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    return n;
+}
+
+/* <instrucao_um_registrador> ::= <op_um_registrador> REG */
+static No *instrucao_um_registrador(Parser *p){
+    No *n = noInterno(p, "<instrucao_um_registrador>");
+    anexar(n, op_um_registrador(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    return n;
+}
+
+/* <instrucao_imediato> ::= "addi" REG "," REG "," NUM_INT */
+static No *instrucao_imediato(Parser *p){
+    No *n = noInterno(p, "<instrucao_imediato>");
+    anexar(n, consumirAtual(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <instrucao_deslocamento> ::= <op_deslocamento> REG "," REG "," NUM_INT */
+static No *instrucao_deslocamento(Parser *p){
+    No *n = noInterno(p, "<instrucao_deslocamento>");
+    anexar(n, op_deslocamento(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!virgulaEReg(p, n)) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <instrucao_li> ::= "li" REG "," NUM_INT */
+static No *instrucao_li(Parser *p){
+    No *n = noInterno(p, "<instrucao_li>");
+    anexar(n, consumirAtual(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
+    return n;
+}
+
+/* <instrucao_la> ::= "la" REG "," ID */
+static No *instrucao_la(Parser *p){
+    No *n = noInterno(p, "<instrucao_la>");
+    anexar(n, consumirAtual(p));
+    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
+    if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
+    return n;
+}
+
+/* <instrucao_memoria> ::= <op_memoria> REG "," <endereco> */
+static No *instrucao_memoria(Parser *p){
+    No *n = noInterno(p, "<instrucao_memoria>");
+    anexar(n, op_memoria(p));
     if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
     if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
     if (!anexar(n, endereco(p))) return falha(n);
     return n;
 }
 
-/* <op_desvio> ::= REG SMB_COM REG SMB_COM ID */
-static No *op_desvio(Parser *p){
-    No *n = noInterno(p, "<op_desvio>");
+/* <instrucao_desvio> ::= <op_desvio> REG "," REG "," ID */
+static No *instrucao_desvio(Parser *p){
+    No *n = noInterno(p, "<instrucao_desvio>");
+    anexar(n, op_desvio(p));
     if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
     if (!virgulaEReg(p, n)) return falha(n);
     if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
@@ -737,104 +822,19 @@ static No *op_desvio(Parser *p){
     return n;
 }
 
-/* <op_salto> ::= ID */
-static No *op_salto(Parser *p){
-    No *n = noInterno(p, "<op_salto>");
+/* <instrucao_salto> ::= <op_salto> ID */
+static No *instrucao_salto(Parser *p){
+    No *n = noInterno(p, "<instrucao_salto>");
+    anexar(n, op_salto(p));
     if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
     return n;
 }
 
-/* ---------- grupos de instrucao ----------
-   Cada funcao consome o mnemonico (token atual, ja verificado por instrucao())
-   e depois os operandos. Nenhuma consome o EOL: isso e da linha_codigo(). */
-
-/* Consome o mnemonico e devolve o no do grupo (nome) ja com o mnemonico como filho. */
-static No *inicioGrupo(Parser *p, const char *nome){
-    No *n = noInterno(p, nome);
+/* <instrucao_sem_operandos> ::= "syscall" | "nop" */
+static No *instrucao_sem_operandos(Parser *p){
+    No *n = noInterno(p, "<instrucao_sem_operandos>");
     anexar(n, consumirAtual(p));
     return n;
-}
-
-/* <instrucao_tres_registradores> ::= (ADD|ADDU|SUB|SUBU|MUL|AND|OR|XOR|NOR|SLT) <op_tres_registradores> */
-static No *instrucao_tres_registradores(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_tres_registradores>");
-    if (!anexar(n, op_tres_registradores(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_dois_registradores> ::= (DIV|MOVE) <op_dois_registradores> */
-static No *instrucao_dois_registradores(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_dois_registradores>");
-    if (!anexar(n, op_dois_registradores(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_um_registrador> ::= (MFHI|MFLO|JR) <op_um_registrador> */
-static No *instrucao_um_registrador(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_um_registrador>");
-    if (!anexar(n, op_um_registrador(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_imediato> ::= INS_ADDI REG SMB_COM REG SMB_COM NUM_INT */
-static No *instrucao_imediato(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_imediato>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!virgulaEReg(p, n)) return falha(n);
-    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
-    return n;
-}
-
-/* <instrucao_deslocamento> ::= (SLL|SRL) <op_deslocamento> */
-static No *instrucao_deslocamento(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_deslocamento>");
-    if (!anexar(n, op_deslocamento(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_li> ::= INS_LI REG SMB_COM NUM_INT */
-static No *instrucao_li(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_li>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_NUM_INT, ESP_NUM))) return falha(n);
-    return n;
-}
-
-/* <instrucao_la> ::= INS_LA REG SMB_COM ID */
-static No *instrucao_la(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_la>");
-    if (!anexar(n, esperar(p, CAT_REG, ESP_REG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_VIRGULA, ESP_VIRG))) return falha(n);
-    if (!anexar(n, esperar(p, CAT_ID, ESP_ID))) return falha(n);
-    return n;
-}
-
-/* <instrucao_memoria> ::= (LW|SW|LB|SB|LH|SH) <op_memoria> */
-static No *instrucao_memoria(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_memoria>");
-    if (!anexar(n, op_memoria(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_desvio> ::= (BEQ|BNE|BLT|BGT|BLE|BGE) <op_desvio> */
-static No *instrucao_desvio(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_desvio>");
-    if (!anexar(n, op_desvio(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_salto> ::= (J|JAL) <op_salto> */
-static No *instrucao_salto(Parser *p){
-    No *n = inicioGrupo(p, "<instrucao_salto>");
-    if (!anexar(n, op_salto(p))) return falha(n);
-    return n;
-}
-
-/* <instrucao_sem_operandos> ::= INS_SYSCALL | INS_NOP */
-static No *instrucao_sem_operandos(Parser *p){
-    return inicioGrupo(p, "<instrucao_sem_operandos>");
 }
 
 /* <instrucao> ::= <instrucao_...>   (grupo escolhido pelo mnemonico atual) */
