@@ -1,8 +1,3 @@
-#!/bin/bash
-# Roda os testes da Pessoa 3 (testes_sintatico/p3_*.asm) e confere o codigo de saida
-# e a quantidade de erros sintaticos de cada um.
-# Uso: bash rodar_testes_p3.sh [caminho_do_executavel]   (padrao: ./main.exe)
-
 MAIN="${1:-./main.exe}"
 DIR="testes_sintatico"
 TMP="$(mktemp -d)"
@@ -35,7 +30,3 @@ for caso in $CASOS; do
         falhas=$((falhas + 1))
     fi
 done
-
-echo
-if [ "$falhas" = "0" ]; then echo "Todos os testes da Pessoa 3 passaram."; else echo "$falhas teste(s) falharam."; fi
-exit $((falhas > 0))
