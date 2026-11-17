@@ -1,0 +1,3311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório da Análise Sintática</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --fg: #1b2230; --muted: #566072; --line: #d6dbe3; --code-bg: #f0f2f6; --accent: #2a4fb8;
+  --ok: #1d7a4f; --novo: #e8eefc;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@page { size: A4; margin: 18mm 16mm 18mm; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--fg); background: #fff; font-family: var(--font-body); font-size: 10.5pt; line-height: 1.5; }
+main { max-width: 820px; margin: 0 auto; padding: 0 16px; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 16pt; margin-top: 26px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--fg); break-after: avoid; }
+h3 { font-size: 12pt; margin-top: 16px; margin-bottom: 6px; break-after: avoid; }
+h4 { font-size: 9pt; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+p { margin: 0 0 8px; }
+ul, ol { margin: 0 0 8px; padding-left: 20px; }
+li { margin-bottom: 3px; }
+code, pre { font-family: var(--font-mono); font-size: 8.6pt; }
+code { background: var(--code-bg); padding: 0 3px; border-radius: 3px; }
+pre { background: var(--code-bg); padding: 8px 10px; border-radius: 4px; margin: 0 0 8px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+pre code { background: none; padding: 0; }
+pre.mini { font-size: 7pt; line-height: 1.3; }
+table { border-collapse: collapse; width: 100%; margin: 4px 0 12px; font-size: 9.2pt; }
+th, td { text-align: left; vertical-align: top; padding: 5px 7px; border-bottom: 1px solid var(--line); }
+th { font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1.5px solid var(--fg); }
+tr { break-inside: avoid; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; }
+td.ok { color: var(--ok); font-weight: 600; }
+tr.novo td { background: var(--novo); }
+.sub { color: var(--muted); font-size: 8.6pt; }
+.capa { padding-top: 70px; min-height: 250mm; display: flex; flex-direction: column; gap: 14px; break-after: page; }
+.capa .inst { font-size: 10pt; color: var(--muted); letter-spacing: .04em; }
+.capa h1 { font-size: 30pt; margin-top: 60px; }
+.capa .tit2 { font-size: 13pt; color: var(--muted); }
+.capa dl { margin-top: auto; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 10.5pt; }
+.capa dt { color: var(--muted); }
+.capa dd { margin: 0; }
+.sumario ol { columns: 2; column-gap: 28px; }
+.caso { break-inside: avoid; margin-bottom: 14px; }
+.caso.dot { break-inside: auto; }
+.caso h3 { margin-top: 10px; }
+.par { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.par > div { min-width: 0; }
+figure { margin: 8px 0 14px; }
+figure img { width: 100%; border: 1px solid var(--line); }
+figcaption { font-size: 8.6pt; color: var(--muted); margin-top: 4px; }
+.nota { border-left: 3px solid var(--accent); padding: 4px 10px; margin: 6px 0 10px; color: var(--fg); }
+.pagina { break-before: page; }
+.dots { columns: 2; column-gap: 14px; }
+.dots pre.mini { font-size: 6.4pt; }
+.dots .caso h3 { font-size: 10pt; }
+</style>
+</head>
+<body>
+<main>
+
+<section class="capa">
+  <div class="inst">UNIVERSIDADE CATÓLICA DE BRASÍLIA · LINGUAGENS FORMAIS, AUTÔMATOS E COMPILADORES · 2º SEMESTRE DE 2026</div>
+  <h1>Relatório Técnico da Análise Sintática</h1>
+  <div class="tit2">Analisador sintático descendente recursivo para o subconjunto de Assembly MIPS (MARS)</div>
+  <dl>
+    <dt>Professor</dt><dd>Marcelo Eustáquio</dd>
+    <dt>Etapa</dt><dd>4 – A análise sintática</dd>
+    <dt>Integrantes</dt><dd>(preencher com os nomes do grupo)</dd>
+  </dl>
+</section>
+
+<section class="sumario">
+  <h2>Sumário</h2>
+  <ol>
+    <li>Visão geral e organização do projeto</li>
+    <li>Compilação e execução</li>
+    <li>Estruturas de dados</li>
+    <li>Não terminais e funções de reconhecimento</li>
+    <li>Tratamento de EOL e TK_EOF</li>
+    <li>Diagnóstico e recuperação de erros</li>
+    <li>Construção da árvore sintática concreta</li>
+    <li>Integração com as etapas anteriores</li>
+    <li>Casos de teste e cobertura</li>
+    <li>Resultados esperados e obtidos</li>
+    <li>Imagem da árvore sintática</li>
+    <li>Apêndice A – Testes e diagnósticos</li>
+    <li>Apêndice B – Arquivos DOT dos programas válidos</li>
+  </ol>
+</section>
+
+<h2>1. Visão geral e organização do projeto</h2>
+<p>O analisador sintático recebe a sequência de tokens produzida pelo analisador léxico (arquivo <code>.lex</code>) e verifica se ela segue a gramática do subconjunto de Assembly MIPS definida no enunciado. A técnica usada é a <strong>análise descendente recursiva</strong>: há uma função para cada não terminal da gramática, e cada função decide qual alternativa aplicar olhando apenas o próximo token. Repetições da EBNF (<code>{ ... }</code>) viram laços <code>while</code>, e partes opcionais (<code>[ ... ]</code>) viram decisões <code>if</code> sobre o token atual.</p>
+<p>Para programas válidos, o analisador gera a árvore sintática concreta no formato DOT do Graphviz. Para programas inválidos, registra cada erro com linha, coluna, token encontrado e elemento esperado, e retoma a análise na linha seguinte.</p>
+<table>
+  <thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead>
+  <tbody>
+    <tr><td><code>main.c</code></td><td>Valida os argumentos, abre e fecha os arquivos e chama, nesta ordem, <code>PreProcessamento</code>, <code>AnaliseLexica</code> e <code>AnaliseSintatica</code>.</td></tr>
+    <tr><td><code>preprocessador.c/.h</code></td><td>Remove comentários, normaliza espaços e descarta linhas vazias, mantendo o mapa para a posição original.</td></tr>
+    <tr><td><code>lexico.c/.h</code></td><td>AFD do analisador léxico, tabela de símbolos e erros léxicos. Expõe <code>lexicoQtdErros()</code> para a integração.</td></tr>
+    <tr><td><code>sintatico.c/.h</code></td><td>Leitura dos tokens, funções dos não terminais, diagnóstico e recuperação de erros, e geração da árvore DOT.</td></tr>
+    <tr><td><code>testes_sintatico/</code></td><td>29 casos de teste da etapa sintática.</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Compilação e execução</h2>
+<p>Compilação com o GCC (os arquivos <code>.h</code> são incluídos pelos <code>.c</code>):</p>
+<pre>gcc main.c preprocessador.c lexico.c sintatico.c -o main.exe</pre>
+<p>O projeto também compila sem avisos com <code>gcc -Wall -Wextra -Wpedantic -std=c99</code>. Execução, com dois argumentos:</p>
+<pre>./main.exe &lt;arquivo_entrada.asm&gt; &lt;prefixo_saida&gt;
+
+./main.exe teste.asm resultado</pre>
+<table>
+  <thead><tr><th>Arquivo gerado</th><th>Conteúdo</th></tr></thead>
+  <tbody>
+    <tr><td><code>resultado.pre</code></td><td>Código pré-processado</td></tr>
+    <tr><td><code>resultado.lex</code></td><td>Tokens no formato <code>&lt;CATEGORIA, lexema&gt; linha coluna</code></td></tr>
+    <tr><td><code>resultado.ts</code></td><td>Tabela de símbolos (CSV)</td></tr>
+    <tr><td><code>resultado.lex.err</code></td><td>Erros léxicos</td></tr>
+    <tr><td><code>resultado.sin.err</code></td><td>Erros sintáticos, <em>Nenhum erro sintático encontrado.</em> ou o motivo da não execução</td></tr>
+    <tr><td><code>resultado.dot</code></td><td>Árvore sintática concreta; vazio quando o programa é rejeitado</td></tr>
+  </tbody>
+</table>
+<p>Ao final, o terminal mostra <code>PROGRAMA SINTATICAMENTE VÁLIDO</code> ou <code>PROGRAMA SINTATICAMENTE INVÁLIDO</code>. Se houver erro léxico, mostra <code>ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.</code> Os códigos de encerramento são 0 (programa válido), 1 (rejeição por erros léxicos ou sintáticos) e 2 (argumentos incorretos ou falha de abertura, leitura, gravação ou memória). Para renderizar uma árvore:</p>
+<pre>dot -Tpng resultado.dot -o resultado.png</pre>
+
+<h2>3. Estruturas de dados</h2>
+<p>As estruturas estão declaradas em <code>sintatico.h</code>.</p>
+<pre>typedef struct {
+    char categoria[50];   /* ex.: "INS_LI", "REG", "EOL", "TK_EOF" */
+    char *lexema;
+    int linha;
+    int coluna;
+} TokenSin;
+
+typedef struct No {
+    int id;               /* identificador único do nó: n0, n1, ... */
+    char *rotulo;         /* "&lt;programa&gt;" ou "INS_LI\nli" */
+    struct No **filhos;   /* vetor dinâmico, na ordem da produção */
+    int qtdFilhos;
+    int capFilhos;
+} No;
+
+typedef struct {
+    TokenSin *toks;       /* tokens do .lex, com EOL e TK_EOF inseridos */
+    int qtd, cap;
+    int pos;              /* posição do token atual */
+    int qtdErros;
+    FILE *erros;          /* arquivo .sin.err */
+    int proximoId;        /* próximo id de nó da árvore */
+} Parser;</pre>
+<ul>
+  <li><strong>TokenSin</strong> guarda um token lido do <code>.lex</code>, preservando categoria, lexema e posição original. O lexema é alocado dinamicamente, sem limite de tamanho.</li>
+  <li><strong>Parser</strong> é o estado da análise: o vetor com todos os tokens (carregados em memória antes do reconhecimento), a posição do token atual, o contador de erros e o arquivo de diagnósticos. Todas as funções de reconhecimento recebem um <code>Parser *</code>.</li>
+  <li><strong>No</strong> é um nó da árvore sintática. Os filhos ficam num vetor que cresce por <code>realloc</code>, na ordem em que são reconhecidos.</li>
+  <li><strong>MNEMONICOS[]</strong> é uma tabela estática que associa cada uma das 36 categorias de instrução (<code>INS_ADD</code>, <code>INS_LW</code>…) ao seu grupo de operandos. A função <code>instrucao()</code> consulta essa tabela para escolher a produção.</li>
+  <li><strong>Retorno de <code>AnaliseSintatica</code>:</strong> <code>SIN_VALIDO</code> (0), <code>SIN_INVALIDO</code> (1) e <code>SIN_FALHA</code> (-1), conforme o enunciado.</li>
+</ul>
+
+<h2>4. Não terminais e funções de reconhecimento</h2>
+<p>Cada não terminal da gramática tem uma função com o mesmo nome em <code>sintatico.c</code>. Todas devolvem o nó da subárvore reconhecida, ou <code>NULL</code> quando encontram um erro.</p>
+<table>
+  <thead><tr><th>Não terminal</th><th>Função</th><th>Decisão pelo próximo token</th></tr></thead>
+  <tbody>
+    <tr><td><code>&lt;programa&gt;</code></td><td><code>programa()</code></td><td>Repete <code>secao()</code> até <code>TK_EOF</code>; exige pelo menos uma seção</td></tr>
+    <tr><td><code>&lt;secao&gt;</code></td><td><code>secao()</code></td><td><code>DIR_DATA</code> → dados; <code>DIR_TEXT</code> → código</td></tr>
+    <tr><td><code>&lt;secao_dados&gt;</code></td><td><code>secao_dados()</code></td><td>Repete <code>linha_dados()</code> até <code>DIR_DATA</code>, <code>DIR_TEXT</code> ou <code>TK_EOF</code></td></tr>
+    <tr><td><code>&lt;secao_codigo&gt;</code></td><td><code>secao_codigo()</code></td><td>Repete <code>linha_codigo()</code> até <code>DIR_DATA</code>, <code>DIR_TEXT</code> ou <code>TK_EOF</code></td></tr>
+    <tr><td><code>&lt;linha_dados&gt;</code></td><td><code>linha_dados()</code></td><td><code>ID</code> → rótulo; <code>DIR_GLOBL</code> (sem rótulo) → global; diretiva de dados → dados; exige <code>EOL</code></td></tr>
+    <tr><td><code>&lt;linha_codigo&gt;</code></td><td><code>linha_codigo()</code></td><td><code>ID</code> → rótulo; <code>DIR_GLOBL</code> (sem rótulo) → global; <code>INS_*</code> → instrução; exige <code>EOL</code></td></tr>
+    <tr><td><code>&lt;rotulo&gt;</code></td><td><code>rotulo()</code></td><td><code>ID</code> seguido de <code>SMB_COL</code></td></tr>
+    <tr><td><code>&lt;diretiva_global&gt;</code></td><td><code>diretiva_global()</code></td><td><code>DIR_GLOBL</code> seguido de <code>ID</code></td></tr>
+    <tr><td><code>&lt;diretiva_dados&gt;</code></td><td><code>diretiva_dados()</code></td><td><code>.word/.half/.byte</code> → lista; <code>.ascii/.asciiz</code> → <code>STRING</code>; <code>.space/.align</code> → <code>NUM_INT</code></td></tr>
+    <tr><td><code>&lt;diretiva_inteiros&gt;</code></td><td><code>diretiva_inteiros()</code></td><td><code>DIR_WORD</code>, <code>DIR_HALF</code> ou <code>DIR_BYTE</code></td></tr>
+    <tr><td><code>&lt;lista_inteiros&gt;</code></td><td><code>lista_inteiros()</code></td><td><code>NUM_INT</code>; repete enquanto houver <code>SMB_COM</code></td></tr>
+    <tr><td><code>&lt;diretiva_string&gt;</code></td><td><code>diretiva_string()</code></td><td><code>DIR_ASCII</code> ou <code>DIR_ASCIIZ</code></td></tr>
+    <tr><td><code>&lt;instrucao&gt;</code></td><td><code>instrucao()</code></td><td>Grupo do mnemônico atual, pela tabela <code>MNEMONICOS[]</code></td></tr>
+    <tr><td><code>&lt;instrucao_tres_registradores&gt;</code></td><td><code>instrucao_tres_registradores()</code></td><td><code>&lt;op_tres_registradores&gt; REG , REG , REG</code></td></tr>
+    <tr><td><code>&lt;instrucao_dois_registradores&gt;</code></td><td><code>instrucao_dois_registradores()</code></td><td><code>&lt;op_dois_registradores&gt; REG , REG</code></td></tr>
+    <tr><td><code>&lt;instrucao_um_registrador&gt;</code></td><td><code>instrucao_um_registrador()</code></td><td><code>&lt;op_um_registrador&gt; REG</code></td></tr>
+    <tr><td><code>&lt;instrucao_imediato&gt;</code></td><td><code>instrucao_imediato()</code></td><td><code>addi REG , REG , NUM_INT</code></td></tr>
+    <tr><td><code>&lt;instrucao_deslocamento&gt;</code></td><td><code>instrucao_deslocamento()</code></td><td><code>&lt;op_deslocamento&gt; REG , REG , NUM_INT</code></td></tr>
+    <tr><td><code>&lt;instrucao_li&gt;</code></td><td><code>instrucao_li()</code></td><td><code>li REG , NUM_INT</code></td></tr>
+    <tr><td><code>&lt;instrucao_la&gt;</code></td><td><code>instrucao_la()</code></td><td><code>la REG , ID</code></td></tr>
+    <tr><td><code>&lt;instrucao_memoria&gt;</code></td><td><code>instrucao_memoria()</code></td><td><code>&lt;op_memoria&gt; REG , &lt;endereco&gt;</code></td></tr>
+    <tr><td><code>&lt;instrucao_desvio&gt;</code></td><td><code>instrucao_desvio()</code></td><td><code>&lt;op_desvio&gt; REG , REG , ID</code></td></tr>
+    <tr><td><code>&lt;instrucao_salto&gt;</code></td><td><code>instrucao_salto()</code></td><td><code>&lt;op_salto&gt; ID</code></td></tr>
+    <tr><td><code>&lt;instrucao_sem_operandos&gt;</code></td><td><code>instrucao_sem_operandos()</code></td><td><code>syscall</code> ou <code>nop</code></td></tr>
+    <tr><td><code>&lt;op_tres_registradores&gt;</code></td><td><code>op_tres_registradores()</code></td><td><code>add addu sub subu mul and or xor nor slt</code></td></tr>
+    <tr><td><code>&lt;op_dois_registradores&gt;</code></td><td><code>op_dois_registradores()</code></td><td><code>move div</code></td></tr>
+    <tr><td><code>&lt;op_um_registrador&gt;</code></td><td><code>op_um_registrador()</code></td><td><code>mflo mfhi jr</code></td></tr>
+    <tr><td><code>&lt;op_deslocamento&gt;</code></td><td><code>op_deslocamento()</code></td><td><code>sll srl</code></td></tr>
+    <tr><td><code>&lt;op_memoria&gt;</code></td><td><code>op_memoria()</code></td><td><code>lw sw lb sb lh sh</code></td></tr>
+    <tr><td><code>&lt;op_desvio&gt;</code></td><td><code>op_desvio()</code></td><td><code>beq bne blt ble bgt bge</code></td></tr>
+    <tr><td><code>&lt;op_salto&gt;</code></td><td><code>op_salto()</code></td><td><code>j jal</code></td></tr>
+    <tr><td><code>&lt;endereco&gt;</code></td><td><code>endereco()</code></td><td><code>ID</code>, ou <code>NUM_INT ( REG )</code></td></tr>
+  </tbody>
+</table>
+<h3>Funções auxiliares</h3>
+<table>
+  <thead><tr><th>Função</th><th>Papel</th></tr></thead>
+  <tbody>
+    <tr><td><code>carregarTokens()</code></td><td>Lê o <code>.lex</code> para a memória e insere <code>EOL</code> e <code>TK_EOF</code> (seção 5)</td></tr>
+    <tr><td><code>atual()</code>, <code>verifica()</code></td><td>Consultam o token atual sem consumi-lo</td></tr>
+    <tr><td><code>consumir()</code></td><td>Avança para o próximo token; nunca passa de <code>TK_EOF</code></td></tr>
+    <tr><td><code>esperar()</code></td><td>Consome o token se a categoria for a esperada e devolve a folha; senão registra o erro e devolve <code>NULL</code></td></tr>
+    <tr><td><code>erroSintatico()</code>, <code>sincronizar()</code></td><td>Registram o diagnóstico e fazem a recuperação (seção 6)</td></tr>
+    <tr><td><code>noInterno()</code>, <code>noFolha()</code>, <code>adicionarFilho()</code>, <code>liberarArvore()</code>, <code>gravarDot()</code></td><td>Construção, liberação e gravação da árvore (seção 7)</td></tr>
+    <tr><td><code>grupoDoMnemonico()</code></td><td>Consulta a tabela <code>MNEMONICOS[]</code> para a decisão de <code>instrucao()</code></td></tr>
+  </tbody>
+</table>
+
+<h2>5. Tratamento de EOL e TK_EOF</h2>
+<p>O analisador léxico não gera tokens de fim de linha, e o enunciado proíbe alterar o formato do <code>.lex</code>. Por isso, <code>carregarTokens()</code> cria o marcador <code>EOL</code> internamente, a partir da linha de cada token:</p>
+<ol>
+  <li>Cada linha do <code>.lex</code> é separada em categoria, lexema, linha e coluna. A categoria vai até a primeira <code>", "</code> e o lexema vai até o <code>"&gt; "</code> que antecede os dois números finais. Assim, lexemas que contêm vírgula ou <code>&gt;</code>, como <code>&lt;SMB_COM, ,&gt;</code> ou strings, são lidos corretamente.</li>
+  <li>Quando o próximo token está em outra linha, um <code>EOL</code> é inserido logo depois do último token da linha atual. A coluna do <code>EOL</code> é a posição imediatamente posterior ao último lexema, usada nos diagnósticos de “fim de linha”.</li>
+  <li>Linhas vazias e linhas só com comentários não geram <code>EOL</code> extra: o pré-processador já as removeu, e o <code>EOL</code> só é criado depois de um token.</li>
+  <li>Ao encontrar <code>TK_EOF</code>, a última linha é encerrada com <code>EOL</code>, mesmo que o arquivo não termine com quebra de linha. Se o <code>.lex</code> não tiver <code>TK_EOF</code>, ele é acrescentado; se já tiver, não é duplicado.</li>
+  <li><code>consumir()</code> nunca passa de <code>TK_EOF</code>, então o analisador sempre termina a leitura nesse token, e <code>programa()</code> o inclui como última folha da árvore.</li>
+</ol>
+<p>Exemplo com <code>p1_sem_quebra_final.asm</code>, cujo último <code>syscall</code> não tem quebra de linha. As linhas destacadas foram inseridas pelo analisador sintático:</p>
+<table>
+  <thead><tr><th>Categoria</th><th>Lexema</th><th>Linha</th><th>Coluna</th><th>Origem</th></tr></thead>
+  <tbody><tr class=""><td><code>DIR_TEXT</code></td><td><code>.text</code></td><td class="num">2</td><td class="num">1</td><td>lido do .lex</td></tr><tr class="novo"><td><code>EOL</code></td><td><code></code></td><td class="num">2</td><td class="num">6</td><td>inserido pelo sintático</td></tr><tr class=""><td><code>ID</code></td><td><code>main</code></td><td class="num">3</td><td class="num">1</td><td>lido do .lex</td></tr><tr class=""><td><code>SMB_COL</code></td><td><code>:</code></td><td class="num">3</td><td class="num">5</td><td>lido do .lex</td></tr><tr class=""><td><code>INS_LI</code></td><td><code>li</code></td><td class="num">3</td><td class="num">7</td><td>lido do .lex</td></tr><tr class=""><td><code>REG</code></td><td><code>$v0</code></td><td class="num">3</td><td class="num">10</td><td>lido do .lex</td></tr><tr class=""><td><code>SMB_COM</code></td><td><code>,</code></td><td class="num">3</td><td class="num">13</td><td>lido do .lex</td></tr><tr class=""><td><code>NUM_INT</code></td><td><code>10</code></td><td class="num">3</td><td class="num">15</td><td>lido do .lex</td></tr><tr class="novo"><td><code>EOL</code></td><td><code></code></td><td class="num">3</td><td class="num">17</td><td>inserido pelo sintático</td></tr><tr class=""><td><code>INS_SYSCALL</code></td><td><code>syscall</code></td><td class="num">4</td><td class="num">1</td><td>lido do .lex</td></tr><tr class="novo"><td><code>EOL</code></td><td><code></code></td><td class="num">4</td><td class="num">8</td><td>inserido pelo sintático</td></tr><tr class=""><td><code>TK_EOF</code></td><td><code>EOF</code></td><td class="num">5</td><td class="num">1</td><td>lido do .lex</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Diagnóstico e recuperação de erros</h2>
+<h3>Diagnóstico</h3>
+<p>Todo erro passa por <code>erroSintatico()</code>, chamada diretamente ou por <code>esperar()</code>. Ela incrementa o contador de erros e grava no <code>.sin.err</code> a posição do token encontrado, sua categoria e lexema, e o elemento esperado:</p>
+<pre>Linha 4, coluna 9:
+Encontrado REG("$t1"); esperado SMB_COM(",").</pre>
+<ul>
+  <li>Se o token encontrado é <code>EOL</code> (elemento ausente no fim da linha), a mensagem é <code>Encontrado fim de linha (EOL); esperado …</code>, na coluna seguinte ao último lexema da linha.</li>
+  <li>Se é <code>TK_EOF</code>, a mensagem é <code>Encontrado TK_EOF; esperado …</code>.</li>
+  <li>O elemento esperado é a categoria do terminal (<code>REG</code>, <code>NUM_INT</code>, <code>SMB_COM(",")</code>…) ou o nome da construção, como <code>DIR_DATA(".data") ou DIR_TEXT(".text")</code>, <code>rotulo ou instrucao</code> ou <code>diretiva de dados ou EOL</code>.</li>
+</ul>
+<h3>Recuperação</h3>
+<ol>
+  <li>Quando uma função encontra um erro, ela libera a subárvore parcial com <code>falha()</code> e devolve <code>NULL</code>. O <code>NULL</code> sobe até <code>linha_dados()</code> ou <code>linha_codigo()</code>.</li>
+  <li>A função de linha chama <code>sincronizar()</code>, que descarta os tokens até o <code>EOL</code> da linha atual e consome esse <code>EOL</code>. Se o token atual já é <code>EOL</code>, só ele é consumido; se é <code>TK_EOF</code>, a recuperação para. Nenhum token de uma linha seguinte é descartado.</li>
+  <li>A análise continua na mesma seção. O laço de <code>secao_dados()</code>/<code>secao_codigo()</code> só termina numa nova <code>.data</code>/<code>.text</code> ou em <code>TK_EOF</code>, então uma construção da seção errada vira erro, e não fim de seção, e uma nova diretiva de seção é reconhecida normalmente.</li>
+  <li>Para evitar repetir o mesmo diagnóstico sem fim, os laços de seção conferem se a posição avançou e, se não avançou, pulam um token.</li>
+  <li>Só é registrado o primeiro erro de cada linha. Erros em linhas posteriores continuam sendo detectados.</li>
+  <li>Qualquer erro torna o programa inválido: <code>AnaliseSintatica()</code> devolve 1, o <code>.dot</code> fica vazio e nenhuma árvore parcial é gravada.</li>
+</ol>
+<p>Exemplo com <code>teste_erros_recuperacao.asm</code>: os erros nas linhas 3, 9 e 11 são registrados, e as construções válidas entre e depois deles continuam sendo analisadas (veja o Apêndice A).</p>
+
+<h2>7. Construção da árvore sintática concreta</h2>
+<ul>
+  <li>Cada função de não terminal cria seu nó com <code>noInterno(p, "&lt;nome&gt;")</code> e anexa os filhos com <code>adicionarFilho()</code>, na mesma ordem dos símbolos da produção. Os filhos são anexados à medida que são reconhecidos, então a ordem da árvore é a ordem da entrada.</li>
+  <li>Cada terminal consumido vira uma folha criada por <code>noFolha()</code>, com rótulo <code>CATEGORIA\nlexema</code> (por exemplo <code>REG\n$t0</code>). <code>EOL</code> e <code>TK_EOF</code> também são folhas, rotuladas só com a categoria.</li>
+  <li>Repetições da EBNF aparecem como filhos sucessivos do mesmo nó (as linhas de uma seção, os inteiros de <code>&lt;lista_inteiros&gt;</code>). Partes opcionais ausentes, como uma linha sem rótulo, não geram nós.</li>
+  <li>Cada nó recebe um identificador único e sequencial (<code>proximoId</code>), gravado como <code>n0</code>, <code>n1</code>…</li>
+  <li><code>gravarDot()</code> escreve primeiro todos os nós e depois todas as arestas, com <code>graph [ordering=out]</code> para o Graphviz respeitar a ordem dos filhos. Aspas e barras invertidas nos rótulos são escapadas (<code>\"</code> e <code>\\</code>), e a quebra entre categoria e lexema vira <code>\n</code>. O teste <code>teste_escape_dot.asm</code> verifica isso com strings que contêm aspas e barras.</li>
+  <li>A árvore só é gravada se não houver nenhum erro. Depois de gravada, ela é liberada com <code>liberarArvore()</code>.</li>
+</ul>
+<p>Trecho do formato gerado:</p>
+<pre>digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  ...
+  n0 -&gt; n1;
+  ...
+}</pre>
+
+<h2>8. Integração com as etapas anteriores</h2>
+<ul>
+  <li><code>main()</code> executa as três etapas em ordem, sempre recriando os arquivos de saída para não sobrar resultado de uma execução anterior. O <code>.pre</code> e o <code>.lex</code> são reabertos para leitura, então cada etapa lê sua entrada desde o início.</li>
+  <li>O módulo léxico manteve sua interface pública e ganhou <code>int lexicoQtdErros(void)</code>, que devolve a quantidade de erros léxicos da última análise. Se ela for maior que zero, <code>main()</code> não chama o sintático, mostra <code>ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.</code>, grava o mesmo motivo no <code>.sin.err</code>, deixa o <code>.dot</code> vazio e encerra com código 1.</li>
+  <li><code>AnaliseSintatica(FILE *tokens, FILE *arvore, FILE *erros)</code> usa só os arquivos recebidos por parâmetro. A abertura e o fechamento ficam com <code>main()</code>.</li>
+  <li>Falhas de memória no pré-processador, no léxico e no sintático encerram o programa com código 2.</li>
+</ul>
+
+<h2 class="pagina">9. Casos de teste e cobertura</h2>
+<p>Foram usados 29 programas em <code>testes_sintatico/</code>: 11 sintaticamente válidos e 18 rejeitados. Todos os casos de erro sintático são lexicamente válidos. A tabela mostra onde cada item da seção 8 do enunciado é coberto.</p>
+<table>
+  <thead><tr><th>Categoria</th><th>Caso exigido</th><th>Testes</th></tr></thead>
+  <tbody>
+    <tr><td>Organização</td><td>Programa iniciado por <code>.text</code>; <code>.data</code> e <code>.text</code>; alternância e seção vazia</td><td><code>p2_valido_direto_text</code>, <code>p2_valido_data_text</code>, <code>p2_valido_alternancia_secao_vazia</code></td></tr>
+    <tr><td>Rótulos</td><td>Rótulo isolado; rótulo seguido de instrução ou diretiva</td><td><code>p2_valido_rotulos</code>, <code>p3_valido_rotulo_e_instrucao</code></td></tr>
+    <tr><td>Diretivas</td><td>Todas as diretivas da gramática</td><td><code>p2_valido_todas_diretivas</code></td></tr>
+    <tr><td>Instruções</td><td>Todos os grupos e todas as 36 operações</td><td><code>p3_valido_todas_instrucoes</code></td></tr>
+    <tr><td>Operandos</td><td>Decimais, hexadecimais, strings, listas e identificadores</td><td><code>p3_valido_numeros_e_enderecos</code>, <code>p2_valido_todas_diretivas</code></td></tr>
+    <tr><td>Memória</td><td>Endereço por identificador e por deslocamento(registrador)</td><td><code>p3_valido_numeros_e_enderecos</code>, <code>p3_valido_todas_instrucoes</code></td></tr>
+    <tr><td>Linhas</td><td>Linhas vazias, comentários, arquivo sem quebra final</td><td><code>p1_linhas_vazias_comentarios</code>, <code>p1_sem_quebra_final</code></td></tr>
+    <tr><td>Entrada inválida</td><td>Arquivo vazio; programa sem abertura de seção</td><td><code>p1_arquivo_vazio</code>, <code>p1_so_comentarios</code>, <code>p1_sem_secao</code>, <code>p2_erro_token_antes_secao</code></td></tr>
+    <tr><td>Seção incorreta</td><td>Instrução em <code>.data</code>; diretiva de dados em <code>.text</code></td><td><code>p2_erro_instrucao_em_data</code>, <code>p2_erro_diretiva_em_text</code></td></tr>
+    <tr><td>Estrutura incorreta</td><td>Operandos ausentes, excedentes, fora de ordem ou de categoria errada</td><td><code>p3_erro_faltam_operandos</code>, <code>p3_erro_operando_excedente</code>, <code>p3_erro_fora_de_ordem</code>, <code>p3_erro_categoria_errada</code>, <code>p2_erro_operandos_diretivas</code></td></tr>
+    <tr><td>Pontuação</td><td>Vírgula, dois-pontos ou parênteses ausentes; lista terminada em vírgula</td><td><code>p3_erro_virgula_ausente</code>, <code>p3_erro_endereco</code>, <code>p2_erro_rotulo_sem_dois_pontos</code>, <code>p2_erro_word_virgula_final</code></td></tr>
+    <tr><td>Consumo completo</td><td>Tokens adicionais após uma construção completa</td><td><code>p2_erro_token_sobrando</code>, <code>p3_erro_operando_excedente</code></td></tr>
+    <tr><td>Recuperação</td><td>Erros em linhas distintas, com reconhecimento das construções seguintes</td><td><code>teste_erros_recuperacao</code> e todos os testes com mais de um erro</td></tr>
+    <tr><td>Limites da etapa</td><td>Rótulo inexistente e rótulo duplicado, sem rejeição</td><td><code>p3_valido_rotulo_e_instrucao</code>, <code>teste_escape_dot</code></td></tr>
+    <tr><td>Integração</td><td>Erro léxico impede a análise sintática</td><td><code>p1_erro_lexico</code></td></tr>
+    <tr><td>Saída DOT</td><td>Escape de aspas e barras invertidas nos rótulos</td><td><code>teste_escape_dot</code></td></tr>
+  </tbody>
+</table>
+
+<h2>10. Resultados esperados e obtidos</h2>
+<p>Resultados obtidos executando <code>./main.exe</code> sobre cada arquivo. “Erros” é a quantidade de diagnósticos no <code>.sin.err</code>. O conteúdo completo de cada teste e dos diagnósticos está no Apêndice A.</p>
+<table>
+  <thead><tr><th>Teste</th><th>Esperado</th><th>Obtido</th><th></th></tr></thead>
+  <tbody>
+      <tr><td><code>p1_arquivo_vazio</code><div class="sub"></div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p1_erro_lexico</code><div class="sub">Erro lexico: a analise sintatica nao deve ser executada</div></td>
+      <td>Não executa o sintático (erro léxico); saída 1</td><td>Não executou o sintático; saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p1_linhas_vazias_comentarios</code><div class="sub">Linhas vazias e comentarios nao geram EOL extra</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p1_sem_quebra_final</code><div class="sub">Arquivo sem quebra de linha final</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p1_sem_secao</code><div class="sub">Programa sem abertura de secao</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p1_so_comentarios</code><div class="sub">Arquivo composto somente por comentarios</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_diretiva_em_text</code><div class="sub">Diretiva de dados dentro de .text (erro na linha 4); o nop seguinte continua valido</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_instrucao_em_data</code><div class="sub">Instrucao dentro de .data (erro na linha 4); a secao .text depois continua valida</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_operandos_diretivas</code><div class="sub">Operando que falta ou de categoria errada em diretivas, 4 linhas diferentes (3 a 6)</div></td>
+      <td>Inválido, 4 erro(s); saída 1</td><td>Inválido, 4 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_rotulo_sem_dois_pontos</code><div class="sub">Rotulo sem dois-pontos em .data (erro na linha 3) e em .text (erro na linha 5)</div></td>
+      <td>Inválido, 2 erro(s); saída 1</td><td>Inválido, 2 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_token_antes_secao</code><div class="sub">Token antes de qualquer secao (erro na linha 2); a .text depois e reconhecida</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_token_sobrando</code><div class="sub">Token sobrando depois de construcao completa, em 3 linhas diferentes (2, 3 e 5)</div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_erro_word_virgula_final</code><div class="sub">.word com lista terminada em virgula (erro na linha 3)</div></td>
+      <td>Inválido, 1 erro(s); saída 1</td><td>Inválido, 1 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_valido_alternancia_secao_vazia</code><div class="sub">Alternancia entre secoes e secoes vazias</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_valido_data_text</code><div class="sub">Secao .data seguida de .text</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_valido_direto_text</code><div class="sub">Programa que comeca direto em .text (sem secao .data)</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_valido_rotulos</code><div class="sub">Rotulo isolado, rotulo + diretiva, rotulo + instrucao, .globl nas duas secoes</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p2_valido_todas_diretivas</code><div class="sub">As 10 diretivas: .data .text .globl .word .half .byte .ascii .asciiz .space .align</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_categoria_errada</code><div class="sub">Operandos de categoria inadequada: 5 erros, um por linha</div></td>
+      <td>Inválido, 5 erro(s); saída 1</td><td>Inválido, 5 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_endereco</code><div class="sub">Enderecos mal formados: 4 erros, um por linha</div></td>
+      <td>Inválido, 4 erro(s); saída 1</td><td>Inválido, 4 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_faltam_operandos</code><div class="sub">Operandos ausentes: 3 erros, um por linha</div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_fora_de_ordem</code><div class="sub">Operandos fora de ordem: 3 erros, um por linha</div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_operando_excedente</code><div class="sub">Operandos excedentes: 3 erros, um por linha</div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_erro_virgula_ausente</code><div class="sub">Virgulas ausentes entre operandos: 3 erros, um por linha</div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_valido_numeros_e_enderecos</code><div class="sub">Inteiros decimais, negativos e hexadecimais; enderecos por identificador</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_valido_rotulo_e_instrucao</code><div class="sub">Rotulo seguido de instrucao na mesma linha, rotulo isolado,</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>p3_valido_todas_instrucoes</code><div class="sub">Todas as operacoes de todos os grupos de instrucoes da gramatica</div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+      <tr><td><code>teste_erros_recuperacao</code><div class="sub"></div></td>
+      <td>Inválido, 3 erro(s); saída 1</td><td>Inválido, 3 erro(s); saída 1</td><td class="ok">confere</td></tr>
+      <tr><td><code>teste_escape_dot</code><div class="sub"></div></td>
+      <td>Válido; saída 0</td><td>Válido; saída 0</td><td class="ok">confere</td></tr>
+  </tbody>
+</table>
+
+<h2 class="pagina">11. Imagem da árvore sintática</h2>
+<p>Árvore sintática concreta completa de <code>testes_sintatico/p2_valido_data_text.asm</code> (73 nós), renderizada pelo Graphviz com <code>dot -Tpng arvore.dot -o arvore.png</code>:</p>
+<pre>.data
+msg:    .asciiz "Ola, mundo"
+valor:  .word 42
+
+.text
+.globl main
+main:
+        li   $v0, 4
+        la   $a0, msg
+        syscall
+        li   $v0, 10
+        syscall</pre>
+<figure>
+  <img src="arvore.png" alt="Árvore sintática concreta do programa p2_valido_data_text">
+  <figcaption>A raiz é &lt;programa&gt;, os nós internos são não terminais e as folhas são os terminais com categoria e lexema, incluindo EOL e TK_EOF.</figcaption>
+</figure>
+
+<h2 class="pagina">Apêndice A – Testes e diagnósticos</h2>
+<p>Para cada teste: o arquivo de entrada, a mensagem mostrada no terminal e o conteúdo do <code>.sin.err</code>.</p>
+
+    <article class="caso">
+      <h3><code>p1_arquivo_vazio.asm</code></h3>
+      <p class="sub"></p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre></pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 1, coluna 1:
+Encontrado TK_EOF; esperado DIR_DATA(".data") ou DIR_TEXT(".text").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p1_erro_lexico.asm</code></h3>
+      <p class="sub">Erro lexico: a analise sintatica nao deve ser executada</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Erro lexico: a analise sintatica nao deve ser executada
+.text
+main: li $t0, 10
+add $t1, $t0, @</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.
+
+ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p1_linhas_vazias_comentarios.asm</code></h3>
+      <p class="sub">Linhas vazias e comentarios nao geram EOL extra</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Linhas vazias e comentarios nao geram EOL extra
+
+.data
+
+# comentario isolado
+msg: .asciiz "a, b&gt; 1 2" # string com virgula e &gt;
+
+
+.text
+main:   li $v0, 10   # comentario no fim
+
+        syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p1_sem_quebra_final.asm</code></h3>
+      <p class="sub">Arquivo sem quebra de linha final</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Arquivo sem quebra de linha final
+.text
+main: li $v0, 10
+syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p1_sem_secao.asm</code></h3>
+      <p class="sub">Programa sem abertura de secao</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Programa sem abertura de secao
+main: li $t0, 10
+.text
+syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 2, coluna 1:
+Encontrado ID("main"); esperado DIR_DATA(".data") ou DIR_TEXT(".text").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p1_so_comentarios.asm</code></h3>
+      <p class="sub">Arquivo composto somente por comentarios</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Arquivo composto somente por comentarios
+
+# deve ser rejeitado: nao ha secao</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 4, coluna 1:
+Encontrado TK_EOF; esperado DIR_DATA(".data") ou DIR_TEXT(".text").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_diretiva_em_text.asm</code></h3>
+      <p class="sub">Diretiva de dados dentro de .text (erro na linha 4); o nop seguinte continua valido</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Diretiva de dados dentro de .text (erro na linha 4); o nop seguinte continua valido
+.text
+main:   nop
+        .word 5
+        nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 4, coluna 9:
+Encontrado DIR_WORD(".word"); esperado rotulo ou instrucao.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_instrucao_em_data.asm</code></h3>
+      <p class="sub">Instrucao dentro de .data (erro na linha 4); a secao .text depois continua valida</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Instrucao dentro de .data (erro na linha 4); a secao .text depois continua valida
+.data
+msg:    .asciiz "ok"
+        add  $t0, $t1, $t2
+.text
+main:   nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 4, coluna 9:
+Encontrado INS_ADD("add"); esperado rotulo ou diretiva de dados.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_operandos_diretivas.asm</code></h3>
+      <p class="sub">Operando que falta ou de categoria errada em diretivas, 4 linhas diferentes (3 a 6)</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Operando que falta ou de categoria errada em diretivas, 4 linhas diferentes (3 a 6)
+.data
+a: .asciiz 5
+b: .space
+c: .word
+.globl
+d: .half 1
+.text
+main:   nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 12:
+Encontrado NUM_INT("5"); esperado STRING.
+Linha 4, coluna 10:
+Encontrado fim de linha (EOL); esperado NUM_INT.
+Linha 5, coluna 9:
+Encontrado fim de linha (EOL); esperado NUM_INT.
+Linha 6, coluna 7:
+Encontrado fim de linha (EOL); esperado ID.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_rotulo_sem_dois_pontos.asm</code></h3>
+      <p class="sub">Rotulo sem dois-pontos em .data (erro na linha 3) e em .text (erro na linha 5)</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Rotulo sem dois-pontos em .data (erro na linha 3) e em .text (erro na linha 5)
+.data
+valor .word 5
+.text
+main nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 7:
+Encontrado DIR_WORD(".word"); esperado SMB_COL(":").
+Linha 5, coluna 6:
+Encontrado INS_NOP("nop"); esperado SMB_COL(":").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_token_antes_secao.asm</code></h3>
+      <p class="sub">Token antes de qualquer secao (erro na linha 2); a .text depois e reconhecida</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Token antes de qualquer secao (erro na linha 2); a .text depois e reconhecida
+meuRotulo: .word 1
+.text
+main:   nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 2, coluna 1:
+Encontrado ID("meuRotulo"); esperado DIR_DATA(".data") ou DIR_TEXT(".text").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_token_sobrando.asm</code></h3>
+      <p class="sub">Token sobrando depois de construcao completa, em 3 linhas diferentes (2, 3 e 5)</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Token sobrando depois de construcao completa, em 3 linhas diferentes (2, 3 e 5)
+.data extra
+valor: .word 1 2
+.text
+.globl main extra
+main:   nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 2, coluna 7:
+Encontrado ID("extra"); esperado EOL.
+Linha 3, coluna 16:
+Encontrado NUM_INT("2"); esperado EOL.
+Linha 5, coluna 13:
+Encontrado ID("extra"); esperado EOL.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_erro_word_virgula_final.asm</code></h3>
+      <p class="sub">.word com lista terminada em virgula (erro na linha 3)</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># .word com lista terminada em virgula (erro na linha 3)
+.data
+numeros: .word 10,
+.text
+main:   nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 19:
+Encontrado fim de linha (EOL); esperado NUM_INT.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_valido_alternancia_secao_vazia.asm</code></h3>
+      <p class="sub">Alternancia entre secoes e secoes vazias</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Alternancia entre secoes e secoes vazias
+.data
+.text
+main:
+        nop
+.data
+x:      .word 1
+.text
+.data</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_valido_data_text.asm</code></h3>
+      <p class="sub">Secao .data seguida de .text</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Secao .data seguida de .text
+.data
+msg:    .asciiz "Ola, mundo"
+valor:  .word 42
+
+.text
+.globl main
+main:
+        li   $v0, 4
+        la   $a0, msg
+        syscall
+        li   $v0, 10
+        syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_valido_direto_text.asm</code></h3>
+      <p class="sub">Programa que comeca direto em .text (sem secao .data)</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Programa que comeca direto em .text (sem secao .data)
+.text
+.globl main
+main:
+        li   $v0, 10
+        syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_valido_rotulos.asm</code></h3>
+      <p class="sub">Rotulo isolado, rotulo + diretiva, rotulo + instrucao, .globl nas duas secoes</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Rotulo isolado, rotulo + diretiva, rotulo + instrucao, .globl nas duas secoes
+.data
+inicio:
+dado:   .word 10
+.globl dado
+.text
+.globl principal
+principal:
+laco:   addi $t0, $t0, 1
+        j    laco
+fim:
+        syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p2_valido_todas_diretivas.asm</code></h3>
+      <p class="sub">As 10 diretivas: .data .text .globl .word .half .byte .ascii .asciiz .space .align</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># As 10 diretivas: .data .text .globl .word .half .byte .ascii .asciiz .space .align
+.data
+.globl numeros
+numeros: .word 1, 0x2A, -3
+metade:  .half 4, 5
+bytes:   .byte 7, 0x0F
+texto:   .ascii "sem terminador"
+frase:   .asciiz "aspas \" e barra \\ ok"
+         .space 16
+         .align 2
+.text
+.globl main
+main:</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_categoria_errada.asm</code></h3>
+      <p class="sub">Operandos de categoria inadequada: 5 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Operandos de categoria inadequada: 5 erros, um por linha
+.data
+mensagem: .asciiz "texto"
+
+.text
+    li $t0, mensagem
+    la $t0, 10
+    j 100
+    beq $t0, $t1, 5
+    addi $t0, $t1, $t2
+    nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 6, coluna 13:
+Encontrado ID("mensagem"); esperado NUM_INT.
+Linha 7, coluna 13:
+Encontrado NUM_INT("10"); esperado ID.
+Linha 8, coluna 7:
+Encontrado NUM_INT("100"); esperado ID.
+Linha 9, coluna 19:
+Encontrado NUM_INT("5"); esperado ID.
+Linha 10, coluna 20:
+Encontrado REG("$t2"); esperado NUM_INT.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_endereco.asm</code></h3>
+      <p class="sub">Enderecos mal formados: 4 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Enderecos mal formados: 4 erros, um por linha
+.text
+    lw $t0, 4 $sp
+    sw $t0, 4($sp
+    lb $t0, ($sp)
+    sh $t0, 4(10)
+    lw $t0, 4($sp)</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 15:
+Encontrado REG("$sp"); esperado SMB_OPA("(").
+Linha 4, coluna 18:
+Encontrado fim de linha (EOL); esperado SMB_CPA(")").
+Linha 5, coluna 13:
+Encontrado SMB_OPA("("); esperado ID ou NUM_INT.
+Linha 6, coluna 15:
+Encontrado NUM_INT("10"); esperado REG.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_faltam_operandos.asm</code></h3>
+      <p class="sub">Operandos ausentes: 3 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Operandos ausentes: 3 erros, um por linha
+.text
+    add $t0, $t1
+    li $t0
+    j
+    nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 17:
+Encontrado fim de linha (EOL); esperado SMB_COM(",").
+Linha 4, coluna 11:
+Encontrado fim de linha (EOL); esperado SMB_COM(",").
+Linha 5, coluna 6:
+Encontrado fim de linha (EOL); esperado ID.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_fora_de_ordem.asm</code></h3>
+      <p class="sub">Operandos fora de ordem: 3 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Operandos fora de ordem: 3 erros, um por linha
+.text
+    li 10, $t0
+    sll $t0, 2, $t1
+    beq fim, $t0, $t1
+fim:
+    syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 8:
+Encontrado NUM_INT("10"); esperado REG.
+Linha 4, coluna 14:
+Encontrado NUM_INT("2"); esperado REG.
+Linha 5, coluna 9:
+Encontrado ID("fim"); esperado REG.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_operando_excedente.asm</code></h3>
+      <p class="sub">Operandos excedentes: 3 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Operandos excedentes: 3 erros, um por linha
+.text
+    syscall $t0
+    jr $ra, $t0
+    add $t0, $t1, $t2, $t3
+    nop</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 13:
+Encontrado REG("$t0"); esperado EOL.
+Linha 4, coluna 11:
+Encontrado SMB_COM(","); esperado EOL.
+Linha 5, coluna 22:
+Encontrado SMB_COM(","); esperado EOL.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_erro_virgula_ausente.asm</code></h3>
+      <p class="sub">Virgulas ausentes entre operandos: 3 erros, um por linha</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Virgulas ausentes entre operandos: 3 erros, um por linha
+.text
+    add $t0 $t1, $t2
+    lw $t0 4($sp)
+    beq $t0, $t1 fim
+fim:
+    syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 13:
+Encontrado REG("$t1"); esperado SMB_COM(",").
+Linha 4, coluna 12:
+Encontrado NUM_INT("4"); esperado SMB_COM(",").
+Linha 5, coluna 18:
+Encontrado ID("fim"); esperado SMB_COM(",").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_valido_numeros_e_enderecos.asm</code></h3>
+      <p class="sub">Inteiros decimais, negativos e hexadecimais; enderecos por identificador</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Inteiros decimais, negativos e hexadecimais; enderecos por identificador
+# e por deslocamento(registrador); registradores na forma numerica
+.data
+vetor: .word 10, -20, 0xFF, -0x10
+
+.text
+    li   $t0, 0
+    li   $t1, 2025
+    li   $t2, -32768
+    li   $t3, 0x10010000
+    li   $t4, -0x10
+    addi $t5, $t5, -1
+    addi $t6, $t6, 0xFF
+    sll  $t7, $t7, 0
+    lw   $t0, vetor
+    sw   $t0, vetor
+    lw   $t1, 0($sp)
+    lw   $t1, -4($fp)
+    sw   $t2, 0x10($gp)
+    lb   $8, 3($29)
+    la   $a0, vetor
+    add  $0, $31, $16</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_valido_rotulo_e_instrucao.asm</code></h3>
+      <p class="sub">Rotulo seguido de instrucao na mesma linha, rotulo isolado,</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Rotulo seguido de instrucao na mesma linha, rotulo isolado,
+# referencia antecipada, rotulo inexistente e rotulo duplicado
+# (os dois ultimos sao questoes semanticas e nao devem rejeitar o programa)
+.text
+inicio: li $t0, 10
+loop:   addi $t0, $t0, -1
+        bne $t0, $zero, loop
+        beq $t0, $zero, depois
+        j rotulo_que_nao_existe
+depois:
+        jal funcao
+funcao: jr $ra
+loop:   nop
+fim:    syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>p3_valido_todas_instrucoes.asm</code></h3>
+      <p class="sub">Todas as operacoes de todos os grupos de instrucoes da gramatica</p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre># Todas as operacoes de todos os grupos de instrucoes da gramatica
+.data
+numero: .word 10
+msg:    .asciiz "ok"
+
+.text
+main:
+    # tres registradores
+    add  $t0, $t1, $t2
+    addu $t0, $t1, $t2
+    sub  $t0, $t1, $t2
+    subu $t0, $t1, $t2
+    mul  $t0, $t1, $t2
+    and  $t0, $t1, $t2
+    or   $t0, $t1, $t2
+    xor  $t0, $t1, $t2
+    nor  $t0, $t1, $t2
+    slt  $t0, $t1, $t2
+    # dois registradores
+    move $t0, $t1
+    div  $t0, $t1
+    # um registrador
+    mflo $t0
+    mfhi $t1
+    jr   $ra
+    # imediato
+    addi $t0, $t1, 5
+    # deslocamento de bits
+    sll  $t0, $t1, 2
+    srl  $t0, $t1, 2
+    # carregamento de valor e endereco
+    li   $v0, 4
+    la   $a0, msg
+    # acesso a memoria
+    lw   $t0, numero
+    sw   $t0, 0($sp)
+    lb   $t0, 1($sp)
+    sb   $t0, 2($sp)
+    lh   $t0, 4($sp)
+    sh   $t0, 6($sp)
+    # desvios condicionais
+    beq  $t0, $t1, fim
+    bne  $t0, $t1, fim
+    blt  $t0, $t1, fim
+    ble  $t0, $t1, fim
+    bgt  $t0, $t1, fim
+    bge  $t0, $t1, fim
+    # saltos
+    j    fim
+    jal  fim
+    # sem operandos
+    nop
+fim:
+    syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>teste_erros_recuperacao.asm</code></h3>
+      <p class="sub"></p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre>.data
+    valido1: .word 10, 20
+    erro1: .word 10,
+    valido2: .asciiz "Linha recuperada com sucesso"
+
+.text
+main:
+    add $t0, $t1, $t2
+    add $t0 $t1, $t2
+    sub $t3, $t4, $t5
+    lw $t0, 4 $sp
+    li $t1, 100
+    syscall</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE INVÁLIDO
+
+Linha 3, coluna 21:
+Encontrado fim de linha (EOL); esperado NUM_INT.
+Linha 9, coluna 13:
+Encontrado REG("$t1"); esperado SMB_COM(",").
+Linha 11, coluna 15:
+Encontrado REG("$sp"); esperado SMB_OPA("(").</pre></div>
+      </div>
+    </article>
+    <article class="caso">
+      <h3><code>teste_escape_dot.asm</code></h3>
+      <p class="sub"></p>
+      <div class="par">
+        <div><h4>Arquivo de entrada</h4><pre>.data
+    msg_aspas: .asciiz "Texto com \"aspas\" internas"
+    msg_barra: .asciiz "C:\\pasta\\arquivo.asm"
+
+.text
+inicio:
+    la $a0, msg_aspas
+    li $v0, 4
+    syscall
+inicio:
+    j rotulo_inexistente</pre></div>
+        <div><h4>Terminal e .sin.err</h4><pre>PROGRAMA SINTATICAMENTE VÁLIDO
+
+Nenhum erro sintático encontrado.</pre></div>
+      </div>
+    </article>
+
+<h2 class="pagina">Apêndice B – Arquivos DOT dos programas válidos</h2>
+<p>Conteúdo do <code>.dot</code> gerado para cada um dos 11 programas válidos.</p>
+<div class="dots">
+    <article class="caso dot">
+      <h3><code>p1_linhas_vazias_comentarios.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nmsg"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;diretiva_dados&gt;"];
+  n10 [label="&lt;diretiva_string&gt;"];
+  n11 [label="DIR_ASCIIZ\n.asciiz"];
+  n12 [label="STRING\n\"a, b&gt; 1 2\""];
+  n13 [label="EOL"];
+  n14 [label="&lt;secao&gt;"];
+  n15 [label="&lt;secao_codigo&gt;"];
+  n16 [label="DIR_TEXT\n.text"];
+  n17 [label="EOL"];
+  n18 [label="&lt;linha_codigo&gt;"];
+  n19 [label="&lt;rotulo&gt;"];
+  n20 [label="ID\nmain"];
+  n21 [label="SMB_COL\n:"];
+  n22 [label="&lt;instrucao&gt;"];
+  n23 [label="&lt;instrucao_li&gt;"];
+  n24 [label="INS_LI\nli"];
+  n25 [label="REG\n$v0"];
+  n26 [label="SMB_COM\n,"];
+  n27 [label="NUM_INT\n10"];
+  n28 [label="EOL"];
+  n29 [label="&lt;linha_codigo&gt;"];
+  n30 [label="&lt;instrucao&gt;"];
+  n31 [label="&lt;instrucao_sem_operandos&gt;"];
+  n32 [label="INS_SYSCALL\nsyscall"];
+  n33 [label="EOL"];
+  n34 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n9 -&gt; n12;
+  n5 -&gt; n13;
+  n0 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n15 -&gt; n17;
+  n15 -&gt; n18;
+  n18 -&gt; n19;
+  n19 -&gt; n20;
+  n19 -&gt; n21;
+  n18 -&gt; n22;
+  n22 -&gt; n23;
+  n23 -&gt; n24;
+  n23 -&gt; n25;
+  n23 -&gt; n26;
+  n23 -&gt; n27;
+  n18 -&gt; n28;
+  n15 -&gt; n29;
+  n29 -&gt; n30;
+  n30 -&gt; n31;
+  n31 -&gt; n32;
+  n29 -&gt; n33;
+  n0 -&gt; n34;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p1_sem_quebra_final.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_codigo&gt;"];
+  n3 [label="DIR_TEXT\n.text"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_codigo&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nmain"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;instrucao&gt;"];
+  n10 [label="&lt;instrucao_li&gt;"];
+  n11 [label="INS_LI\nli"];
+  n12 [label="REG\n$v0"];
+  n13 [label="SMB_COM\n,"];
+  n14 [label="NUM_INT\n10"];
+  n15 [label="EOL"];
+  n16 [label="&lt;linha_codigo&gt;"];
+  n17 [label="&lt;instrucao&gt;"];
+  n18 [label="&lt;instrucao_sem_operandos&gt;"];
+  n19 [label="INS_SYSCALL\nsyscall"];
+  n20 [label="EOL"];
+  n21 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n10 -&gt; n12;
+  n10 -&gt; n13;
+  n10 -&gt; n14;
+  n5 -&gt; n15;
+  n2 -&gt; n16;
+  n16 -&gt; n17;
+  n17 -&gt; n18;
+  n18 -&gt; n19;
+  n16 -&gt; n20;
+  n0 -&gt; n21;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p2_valido_alternancia_secao_vazia.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;secao&gt;"];
+  n6 [label="&lt;secao_codigo&gt;"];
+  n7 [label="DIR_TEXT\n.text"];
+  n8 [label="EOL"];
+  n9 [label="&lt;linha_codigo&gt;"];
+  n10 [label="&lt;rotulo&gt;"];
+  n11 [label="ID\nmain"];
+  n12 [label="SMB_COL\n:"];
+  n13 [label="EOL"];
+  n14 [label="&lt;linha_codigo&gt;"];
+  n15 [label="&lt;instrucao&gt;"];
+  n16 [label="&lt;instrucao_sem_operandos&gt;"];
+  n17 [label="INS_NOP\nnop"];
+  n18 [label="EOL"];
+  n19 [label="&lt;secao&gt;"];
+  n20 [label="&lt;secao_dados&gt;"];
+  n21 [label="DIR_DATA\n.data"];
+  n22 [label="EOL"];
+  n23 [label="&lt;linha_dados&gt;"];
+  n24 [label="&lt;rotulo&gt;"];
+  n25 [label="ID\nx"];
+  n26 [label="SMB_COL\n:"];
+  n27 [label="&lt;diretiva_dados&gt;"];
+  n28 [label="&lt;diretiva_inteiros&gt;"];
+  n29 [label="DIR_WORD\n.word"];
+  n30 [label="&lt;lista_inteiros&gt;"];
+  n31 [label="NUM_INT\n1"];
+  n32 [label="EOL"];
+  n33 [label="&lt;secao&gt;"];
+  n34 [label="&lt;secao_codigo&gt;"];
+  n35 [label="DIR_TEXT\n.text"];
+  n36 [label="EOL"];
+  n37 [label="&lt;secao&gt;"];
+  n38 [label="&lt;secao_dados&gt;"];
+  n39 [label="DIR_DATA\n.data"];
+  n40 [label="EOL"];
+  n41 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n0 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n6 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n10 -&gt; n12;
+  n9 -&gt; n13;
+  n6 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n16 -&gt; n17;
+  n14 -&gt; n18;
+  n0 -&gt; n19;
+  n19 -&gt; n20;
+  n20 -&gt; n21;
+  n20 -&gt; n22;
+  n20 -&gt; n23;
+  n23 -&gt; n24;
+  n24 -&gt; n25;
+  n24 -&gt; n26;
+  n23 -&gt; n27;
+  n27 -&gt; n28;
+  n28 -&gt; n29;
+  n27 -&gt; n30;
+  n30 -&gt; n31;
+  n23 -&gt; n32;
+  n0 -&gt; n33;
+  n33 -&gt; n34;
+  n34 -&gt; n35;
+  n34 -&gt; n36;
+  n0 -&gt; n37;
+  n37 -&gt; n38;
+  n38 -&gt; n39;
+  n38 -&gt; n40;
+  n0 -&gt; n41;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p2_valido_data_text.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nmsg"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;diretiva_dados&gt;"];
+  n10 [label="&lt;diretiva_string&gt;"];
+  n11 [label="DIR_ASCIIZ\n.asciiz"];
+  n12 [label="STRING\n\"Ola, mundo\""];
+  n13 [label="EOL"];
+  n14 [label="&lt;linha_dados&gt;"];
+  n15 [label="&lt;rotulo&gt;"];
+  n16 [label="ID\nvalor"];
+  n17 [label="SMB_COL\n:"];
+  n18 [label="&lt;diretiva_dados&gt;"];
+  n19 [label="&lt;diretiva_inteiros&gt;"];
+  n20 [label="DIR_WORD\n.word"];
+  n21 [label="&lt;lista_inteiros&gt;"];
+  n22 [label="NUM_INT\n42"];
+  n23 [label="EOL"];
+  n24 [label="&lt;secao&gt;"];
+  n25 [label="&lt;secao_codigo&gt;"];
+  n26 [label="DIR_TEXT\n.text"];
+  n27 [label="EOL"];
+  n28 [label="&lt;linha_codigo&gt;"];
+  n29 [label="&lt;diretiva_global&gt;"];
+  n30 [label="DIR_GLOBL\n.globl"];
+  n31 [label="ID\nmain"];
+  n32 [label="EOL"];
+  n33 [label="&lt;linha_codigo&gt;"];
+  n34 [label="&lt;rotulo&gt;"];
+  n35 [label="ID\nmain"];
+  n36 [label="SMB_COL\n:"];
+  n37 [label="EOL"];
+  n38 [label="&lt;linha_codigo&gt;"];
+  n39 [label="&lt;instrucao&gt;"];
+  n40 [label="&lt;instrucao_li&gt;"];
+  n41 [label="INS_LI\nli"];
+  n42 [label="REG\n$v0"];
+  n43 [label="SMB_COM\n,"];
+  n44 [label="NUM_INT\n4"];
+  n45 [label="EOL"];
+  n46 [label="&lt;linha_codigo&gt;"];
+  n47 [label="&lt;instrucao&gt;"];
+  n48 [label="&lt;instrucao_la&gt;"];
+  n49 [label="INS_LA\nla"];
+  n50 [label="REG\n$a0"];
+  n51 [label="SMB_COM\n,"];
+  n52 [label="ID\nmsg"];
+  n53 [label="EOL"];
+  n54 [label="&lt;linha_codigo&gt;"];
+  n55 [label="&lt;instrucao&gt;"];
+  n56 [label="&lt;instrucao_sem_operandos&gt;"];
+  n57 [label="INS_SYSCALL\nsyscall"];
+  n58 [label="EOL"];
+  n59 [label="&lt;linha_codigo&gt;"];
+  n60 [label="&lt;instrucao&gt;"];
+  n61 [label="&lt;instrucao_li&gt;"];
+  n62 [label="INS_LI\nli"];
+  n63 [label="REG\n$v0"];
+  n64 [label="SMB_COM\n,"];
+  n65 [label="NUM_INT\n10"];
+  n66 [label="EOL"];
+  n67 [label="&lt;linha_codigo&gt;"];
+  n68 [label="&lt;instrucao&gt;"];
+  n69 [label="&lt;instrucao_sem_operandos&gt;"];
+  n70 [label="INS_SYSCALL\nsyscall"];
+  n71 [label="EOL"];
+  n72 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n9 -&gt; n12;
+  n5 -&gt; n13;
+  n2 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n15 -&gt; n17;
+  n14 -&gt; n18;
+  n18 -&gt; n19;
+  n19 -&gt; n20;
+  n18 -&gt; n21;
+  n21 -&gt; n22;
+  n14 -&gt; n23;
+  n0 -&gt; n24;
+  n24 -&gt; n25;
+  n25 -&gt; n26;
+  n25 -&gt; n27;
+  n25 -&gt; n28;
+  n28 -&gt; n29;
+  n29 -&gt; n30;
+  n29 -&gt; n31;
+  n28 -&gt; n32;
+  n25 -&gt; n33;
+  n33 -&gt; n34;
+  n34 -&gt; n35;
+  n34 -&gt; n36;
+  n33 -&gt; n37;
+  n25 -&gt; n38;
+  n38 -&gt; n39;
+  n39 -&gt; n40;
+  n40 -&gt; n41;
+  n40 -&gt; n42;
+  n40 -&gt; n43;
+  n40 -&gt; n44;
+  n38 -&gt; n45;
+  n25 -&gt; n46;
+  n46 -&gt; n47;
+  n47 -&gt; n48;
+  n48 -&gt; n49;
+  n48 -&gt; n50;
+  n48 -&gt; n51;
+  n48 -&gt; n52;
+  n46 -&gt; n53;
+  n25 -&gt; n54;
+  n54 -&gt; n55;
+  n55 -&gt; n56;
+  n56 -&gt; n57;
+  n54 -&gt; n58;
+  n25 -&gt; n59;
+  n59 -&gt; n60;
+  n60 -&gt; n61;
+  n61 -&gt; n62;
+  n61 -&gt; n63;
+  n61 -&gt; n64;
+  n61 -&gt; n65;
+  n59 -&gt; n66;
+  n25 -&gt; n67;
+  n67 -&gt; n68;
+  n68 -&gt; n69;
+  n69 -&gt; n70;
+  n67 -&gt; n71;
+  n0 -&gt; n72;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p2_valido_direto_text.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_codigo&gt;"];
+  n3 [label="DIR_TEXT\n.text"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_codigo&gt;"];
+  n6 [label="&lt;diretiva_global&gt;"];
+  n7 [label="DIR_GLOBL\n.globl"];
+  n8 [label="ID\nmain"];
+  n9 [label="EOL"];
+  n10 [label="&lt;linha_codigo&gt;"];
+  n11 [label="&lt;rotulo&gt;"];
+  n12 [label="ID\nmain"];
+  n13 [label="SMB_COL\n:"];
+  n14 [label="EOL"];
+  n15 [label="&lt;linha_codigo&gt;"];
+  n16 [label="&lt;instrucao&gt;"];
+  n17 [label="&lt;instrucao_li&gt;"];
+  n18 [label="INS_LI\nli"];
+  n19 [label="REG\n$v0"];
+  n20 [label="SMB_COM\n,"];
+  n21 [label="NUM_INT\n10"];
+  n22 [label="EOL"];
+  n23 [label="&lt;linha_codigo&gt;"];
+  n24 [label="&lt;instrucao&gt;"];
+  n25 [label="&lt;instrucao_sem_operandos&gt;"];
+  n26 [label="INS_SYSCALL\nsyscall"];
+  n27 [label="EOL"];
+  n28 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n2 -&gt; n10;
+  n10 -&gt; n11;
+  n11 -&gt; n12;
+  n11 -&gt; n13;
+  n10 -&gt; n14;
+  n2 -&gt; n15;
+  n15 -&gt; n16;
+  n16 -&gt; n17;
+  n17 -&gt; n18;
+  n17 -&gt; n19;
+  n17 -&gt; n20;
+  n17 -&gt; n21;
+  n15 -&gt; n22;
+  n2 -&gt; n23;
+  n23 -&gt; n24;
+  n24 -&gt; n25;
+  n25 -&gt; n26;
+  n23 -&gt; n27;
+  n0 -&gt; n28;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p2_valido_rotulos.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\ninicio"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="EOL"];
+  n10 [label="&lt;linha_dados&gt;"];
+  n11 [label="&lt;rotulo&gt;"];
+  n12 [label="ID\ndado"];
+  n13 [label="SMB_COL\n:"];
+  n14 [label="&lt;diretiva_dados&gt;"];
+  n15 [label="&lt;diretiva_inteiros&gt;"];
+  n16 [label="DIR_WORD\n.word"];
+  n17 [label="&lt;lista_inteiros&gt;"];
+  n18 [label="NUM_INT\n10"];
+  n19 [label="EOL"];
+  n20 [label="&lt;linha_dados&gt;"];
+  n21 [label="&lt;diretiva_global&gt;"];
+  n22 [label="DIR_GLOBL\n.globl"];
+  n23 [label="ID\ndado"];
+  n24 [label="EOL"];
+  n25 [label="&lt;secao&gt;"];
+  n26 [label="&lt;secao_codigo&gt;"];
+  n27 [label="DIR_TEXT\n.text"];
+  n28 [label="EOL"];
+  n29 [label="&lt;linha_codigo&gt;"];
+  n30 [label="&lt;diretiva_global&gt;"];
+  n31 [label="DIR_GLOBL\n.globl"];
+  n32 [label="ID\nprincipal"];
+  n33 [label="EOL"];
+  n34 [label="&lt;linha_codigo&gt;"];
+  n35 [label="&lt;rotulo&gt;"];
+  n36 [label="ID\nprincipal"];
+  n37 [label="SMB_COL\n:"];
+  n38 [label="EOL"];
+  n39 [label="&lt;linha_codigo&gt;"];
+  n40 [label="&lt;rotulo&gt;"];
+  n41 [label="ID\nlaco"];
+  n42 [label="SMB_COL\n:"];
+  n43 [label="&lt;instrucao&gt;"];
+  n44 [label="&lt;instrucao_imediato&gt;"];
+  n45 [label="INS_ADDI\naddi"];
+  n46 [label="REG\n$t0"];
+  n47 [label="SMB_COM\n,"];
+  n48 [label="REG\n$t0"];
+  n49 [label="SMB_COM\n,"];
+  n50 [label="NUM_INT\n1"];
+  n51 [label="EOL"];
+  n52 [label="&lt;linha_codigo&gt;"];
+  n53 [label="&lt;instrucao&gt;"];
+  n54 [label="&lt;instrucao_salto&gt;"];
+  n55 [label="&lt;op_salto&gt;"];
+  n56 [label="INS_J\nj"];
+  n57 [label="ID\nlaco"];
+  n58 [label="EOL"];
+  n59 [label="&lt;linha_codigo&gt;"];
+  n60 [label="&lt;rotulo&gt;"];
+  n61 [label="ID\nfim"];
+  n62 [label="SMB_COL\n:"];
+  n63 [label="EOL"];
+  n64 [label="&lt;linha_codigo&gt;"];
+  n65 [label="&lt;instrucao&gt;"];
+  n66 [label="&lt;instrucao_sem_operandos&gt;"];
+  n67 [label="INS_SYSCALL\nsyscall"];
+  n68 [label="EOL"];
+  n69 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n2 -&gt; n10;
+  n10 -&gt; n11;
+  n11 -&gt; n12;
+  n11 -&gt; n13;
+  n10 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n14 -&gt; n17;
+  n17 -&gt; n18;
+  n10 -&gt; n19;
+  n2 -&gt; n20;
+  n20 -&gt; n21;
+  n21 -&gt; n22;
+  n21 -&gt; n23;
+  n20 -&gt; n24;
+  n0 -&gt; n25;
+  n25 -&gt; n26;
+  n26 -&gt; n27;
+  n26 -&gt; n28;
+  n26 -&gt; n29;
+  n29 -&gt; n30;
+  n30 -&gt; n31;
+  n30 -&gt; n32;
+  n29 -&gt; n33;
+  n26 -&gt; n34;
+  n34 -&gt; n35;
+  n35 -&gt; n36;
+  n35 -&gt; n37;
+  n34 -&gt; n38;
+  n26 -&gt; n39;
+  n39 -&gt; n40;
+  n40 -&gt; n41;
+  n40 -&gt; n42;
+  n39 -&gt; n43;
+  n43 -&gt; n44;
+  n44 -&gt; n45;
+  n44 -&gt; n46;
+  n44 -&gt; n47;
+  n44 -&gt; n48;
+  n44 -&gt; n49;
+  n44 -&gt; n50;
+  n39 -&gt; n51;
+  n26 -&gt; n52;
+  n52 -&gt; n53;
+  n53 -&gt; n54;
+  n54 -&gt; n55;
+  n55 -&gt; n56;
+  n54 -&gt; n57;
+  n52 -&gt; n58;
+  n26 -&gt; n59;
+  n59 -&gt; n60;
+  n60 -&gt; n61;
+  n60 -&gt; n62;
+  n59 -&gt; n63;
+  n26 -&gt; n64;
+  n64 -&gt; n65;
+  n65 -&gt; n66;
+  n66 -&gt; n67;
+  n64 -&gt; n68;
+  n0 -&gt; n69;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p2_valido_todas_diretivas.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;diretiva_global&gt;"];
+  n7 [label="DIR_GLOBL\n.globl"];
+  n8 [label="ID\nnumeros"];
+  n9 [label="EOL"];
+  n10 [label="&lt;linha_dados&gt;"];
+  n11 [label="&lt;rotulo&gt;"];
+  n12 [label="ID\nnumeros"];
+  n13 [label="SMB_COL\n:"];
+  n14 [label="&lt;diretiva_dados&gt;"];
+  n15 [label="&lt;diretiva_inteiros&gt;"];
+  n16 [label="DIR_WORD\n.word"];
+  n17 [label="&lt;lista_inteiros&gt;"];
+  n18 [label="NUM_INT\n1"];
+  n19 [label="SMB_COM\n,"];
+  n20 [label="NUM_INT\n0x2A"];
+  n21 [label="SMB_COM\n,"];
+  n22 [label="NUM_INT\n-3"];
+  n23 [label="EOL"];
+  n24 [label="&lt;linha_dados&gt;"];
+  n25 [label="&lt;rotulo&gt;"];
+  n26 [label="ID\nmetade"];
+  n27 [label="SMB_COL\n:"];
+  n28 [label="&lt;diretiva_dados&gt;"];
+  n29 [label="&lt;diretiva_inteiros&gt;"];
+  n30 [label="DIR_HALF\n.half"];
+  n31 [label="&lt;lista_inteiros&gt;"];
+  n32 [label="NUM_INT\n4"];
+  n33 [label="SMB_COM\n,"];
+  n34 [label="NUM_INT\n5"];
+  n35 [label="EOL"];
+  n36 [label="&lt;linha_dados&gt;"];
+  n37 [label="&lt;rotulo&gt;"];
+  n38 [label="ID\nbytes"];
+  n39 [label="SMB_COL\n:"];
+  n40 [label="&lt;diretiva_dados&gt;"];
+  n41 [label="&lt;diretiva_inteiros&gt;"];
+  n42 [label="DIR_BYTE\n.byte"];
+  n43 [label="&lt;lista_inteiros&gt;"];
+  n44 [label="NUM_INT\n7"];
+  n45 [label="SMB_COM\n,"];
+  n46 [label="NUM_INT\n0x0F"];
+  n47 [label="EOL"];
+  n48 [label="&lt;linha_dados&gt;"];
+  n49 [label="&lt;rotulo&gt;"];
+  n50 [label="ID\ntexto"];
+  n51 [label="SMB_COL\n:"];
+  n52 [label="&lt;diretiva_dados&gt;"];
+  n53 [label="&lt;diretiva_string&gt;"];
+  n54 [label="DIR_ASCII\n.ascii"];
+  n55 [label="STRING\n\"sem terminador\""];
+  n56 [label="EOL"];
+  n57 [label="&lt;linha_dados&gt;"];
+  n58 [label="&lt;rotulo&gt;"];
+  n59 [label="ID\nfrase"];
+  n60 [label="SMB_COL\n:"];
+  n61 [label="&lt;diretiva_dados&gt;"];
+  n62 [label="&lt;diretiva_string&gt;"];
+  n63 [label="DIR_ASCIIZ\n.asciiz"];
+  n64 [label="STRING\n\"aspas \\\" e barra \\\\ ok\""];
+  n65 [label="EOL"];
+  n66 [label="&lt;linha_dados&gt;"];
+  n67 [label="&lt;diretiva_dados&gt;"];
+  n68 [label="DIR_SPACE\n.space"];
+  n69 [label="NUM_INT\n16"];
+  n70 [label="EOL"];
+  n71 [label="&lt;linha_dados&gt;"];
+  n72 [label="&lt;diretiva_dados&gt;"];
+  n73 [label="DIR_ALIGN\n.align"];
+  n74 [label="NUM_INT\n2"];
+  n75 [label="EOL"];
+  n76 [label="&lt;secao&gt;"];
+  n77 [label="&lt;secao_codigo&gt;"];
+  n78 [label="DIR_TEXT\n.text"];
+  n79 [label="EOL"];
+  n80 [label="&lt;linha_codigo&gt;"];
+  n81 [label="&lt;diretiva_global&gt;"];
+  n82 [label="DIR_GLOBL\n.globl"];
+  n83 [label="ID\nmain"];
+  n84 [label="EOL"];
+  n85 [label="&lt;linha_codigo&gt;"];
+  n86 [label="&lt;rotulo&gt;"];
+  n87 [label="ID\nmain"];
+  n88 [label="SMB_COL\n:"];
+  n89 [label="EOL"];
+  n90 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n2 -&gt; n10;
+  n10 -&gt; n11;
+  n11 -&gt; n12;
+  n11 -&gt; n13;
+  n10 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n14 -&gt; n17;
+  n17 -&gt; n18;
+  n17 -&gt; n19;
+  n17 -&gt; n20;
+  n17 -&gt; n21;
+  n17 -&gt; n22;
+  n10 -&gt; n23;
+  n2 -&gt; n24;
+  n24 -&gt; n25;
+  n25 -&gt; n26;
+  n25 -&gt; n27;
+  n24 -&gt; n28;
+  n28 -&gt; n29;
+  n29 -&gt; n30;
+  n28 -&gt; n31;
+  n31 -&gt; n32;
+  n31 -&gt; n33;
+  n31 -&gt; n34;
+  n24 -&gt; n35;
+  n2 -&gt; n36;
+  n36 -&gt; n37;
+  n37 -&gt; n38;
+  n37 -&gt; n39;
+  n36 -&gt; n40;
+  n40 -&gt; n41;
+  n41 -&gt; n42;
+  n40 -&gt; n43;
+  n43 -&gt; n44;
+  n43 -&gt; n45;
+  n43 -&gt; n46;
+  n36 -&gt; n47;
+  n2 -&gt; n48;
+  n48 -&gt; n49;
+  n49 -&gt; n50;
+  n49 -&gt; n51;
+  n48 -&gt; n52;
+  n52 -&gt; n53;
+  n53 -&gt; n54;
+  n52 -&gt; n55;
+  n48 -&gt; n56;
+  n2 -&gt; n57;
+  n57 -&gt; n58;
+  n58 -&gt; n59;
+  n58 -&gt; n60;
+  n57 -&gt; n61;
+  n61 -&gt; n62;
+  n62 -&gt; n63;
+  n61 -&gt; n64;
+  n57 -&gt; n65;
+  n2 -&gt; n66;
+  n66 -&gt; n67;
+  n67 -&gt; n68;
+  n67 -&gt; n69;
+  n66 -&gt; n70;
+  n2 -&gt; n71;
+  n71 -&gt; n72;
+  n72 -&gt; n73;
+  n72 -&gt; n74;
+  n71 -&gt; n75;
+  n0 -&gt; n76;
+  n76 -&gt; n77;
+  n77 -&gt; n78;
+  n77 -&gt; n79;
+  n77 -&gt; n80;
+  n80 -&gt; n81;
+  n81 -&gt; n82;
+  n81 -&gt; n83;
+  n80 -&gt; n84;
+  n77 -&gt; n85;
+  n85 -&gt; n86;
+  n86 -&gt; n87;
+  n86 -&gt; n88;
+  n85 -&gt; n89;
+  n0 -&gt; n90;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p3_valido_numeros_e_enderecos.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nvetor"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;diretiva_dados&gt;"];
+  n10 [label="&lt;diretiva_inteiros&gt;"];
+  n11 [label="DIR_WORD\n.word"];
+  n12 [label="&lt;lista_inteiros&gt;"];
+  n13 [label="NUM_INT\n10"];
+  n14 [label="SMB_COM\n,"];
+  n15 [label="NUM_INT\n-20"];
+  n16 [label="SMB_COM\n,"];
+  n17 [label="NUM_INT\n0xFF"];
+  n18 [label="SMB_COM\n,"];
+  n19 [label="NUM_INT\n-0x10"];
+  n20 [label="EOL"];
+  n21 [label="&lt;secao&gt;"];
+  n22 [label="&lt;secao_codigo&gt;"];
+  n23 [label="DIR_TEXT\n.text"];
+  n24 [label="EOL"];
+  n25 [label="&lt;linha_codigo&gt;"];
+  n26 [label="&lt;instrucao&gt;"];
+  n27 [label="&lt;instrucao_li&gt;"];
+  n28 [label="INS_LI\nli"];
+  n29 [label="REG\n$t0"];
+  n30 [label="SMB_COM\n,"];
+  n31 [label="NUM_INT\n0"];
+  n32 [label="EOL"];
+  n33 [label="&lt;linha_codigo&gt;"];
+  n34 [label="&lt;instrucao&gt;"];
+  n35 [label="&lt;instrucao_li&gt;"];
+  n36 [label="INS_LI\nli"];
+  n37 [label="REG\n$t1"];
+  n38 [label="SMB_COM\n,"];
+  n39 [label="NUM_INT\n2025"];
+  n40 [label="EOL"];
+  n41 [label="&lt;linha_codigo&gt;"];
+  n42 [label="&lt;instrucao&gt;"];
+  n43 [label="&lt;instrucao_li&gt;"];
+  n44 [label="INS_LI\nli"];
+  n45 [label="REG\n$t2"];
+  n46 [label="SMB_COM\n,"];
+  n47 [label="NUM_INT\n-32768"];
+  n48 [label="EOL"];
+  n49 [label="&lt;linha_codigo&gt;"];
+  n50 [label="&lt;instrucao&gt;"];
+  n51 [label="&lt;instrucao_li&gt;"];
+  n52 [label="INS_LI\nli"];
+  n53 [label="REG\n$t3"];
+  n54 [label="SMB_COM\n,"];
+  n55 [label="NUM_INT\n0x10010000"];
+  n56 [label="EOL"];
+  n57 [label="&lt;linha_codigo&gt;"];
+  n58 [label="&lt;instrucao&gt;"];
+  n59 [label="&lt;instrucao_li&gt;"];
+  n60 [label="INS_LI\nli"];
+  n61 [label="REG\n$t4"];
+  n62 [label="SMB_COM\n,"];
+  n63 [label="NUM_INT\n-0x10"];
+  n64 [label="EOL"];
+  n65 [label="&lt;linha_codigo&gt;"];
+  n66 [label="&lt;instrucao&gt;"];
+  n67 [label="&lt;instrucao_imediato&gt;"];
+  n68 [label="INS_ADDI\naddi"];
+  n69 [label="REG\n$t5"];
+  n70 [label="SMB_COM\n,"];
+  n71 [label="REG\n$t5"];
+  n72 [label="SMB_COM\n,"];
+  n73 [label="NUM_INT\n-1"];
+  n74 [label="EOL"];
+  n75 [label="&lt;linha_codigo&gt;"];
+  n76 [label="&lt;instrucao&gt;"];
+  n77 [label="&lt;instrucao_imediato&gt;"];
+  n78 [label="INS_ADDI\naddi"];
+  n79 [label="REG\n$t6"];
+  n80 [label="SMB_COM\n,"];
+  n81 [label="REG\n$t6"];
+  n82 [label="SMB_COM\n,"];
+  n83 [label="NUM_INT\n0xFF"];
+  n84 [label="EOL"];
+  n85 [label="&lt;linha_codigo&gt;"];
+  n86 [label="&lt;instrucao&gt;"];
+  n87 [label="&lt;instrucao_deslocamento&gt;"];
+  n88 [label="&lt;op_deslocamento&gt;"];
+  n89 [label="INS_SLL\nsll"];
+  n90 [label="REG\n$t7"];
+  n91 [label="SMB_COM\n,"];
+  n92 [label="REG\n$t7"];
+  n93 [label="SMB_COM\n,"];
+  n94 [label="NUM_INT\n0"];
+  n95 [label="EOL"];
+  n96 [label="&lt;linha_codigo&gt;"];
+  n97 [label="&lt;instrucao&gt;"];
+  n98 [label="&lt;instrucao_memoria&gt;"];
+  n99 [label="&lt;op_memoria&gt;"];
+  n100 [label="INS_LW\nlw"];
+  n101 [label="REG\n$t0"];
+  n102 [label="SMB_COM\n,"];
+  n103 [label="&lt;endereco&gt;"];
+  n104 [label="ID\nvetor"];
+  n105 [label="EOL"];
+  n106 [label="&lt;linha_codigo&gt;"];
+  n107 [label="&lt;instrucao&gt;"];
+  n108 [label="&lt;instrucao_memoria&gt;"];
+  n109 [label="&lt;op_memoria&gt;"];
+  n110 [label="INS_SW\nsw"];
+  n111 [label="REG\n$t0"];
+  n112 [label="SMB_COM\n,"];
+  n113 [label="&lt;endereco&gt;"];
+  n114 [label="ID\nvetor"];
+  n115 [label="EOL"];
+  n116 [label="&lt;linha_codigo&gt;"];
+  n117 [label="&lt;instrucao&gt;"];
+  n118 [label="&lt;instrucao_memoria&gt;"];
+  n119 [label="&lt;op_memoria&gt;"];
+  n120 [label="INS_LW\nlw"];
+  n121 [label="REG\n$t1"];
+  n122 [label="SMB_COM\n,"];
+  n123 [label="&lt;endereco&gt;"];
+  n124 [label="NUM_INT\n0"];
+  n125 [label="SMB_OPA\n("];
+  n126 [label="REG\n$sp"];
+  n127 [label="SMB_CPA\n)"];
+  n128 [label="EOL"];
+  n129 [label="&lt;linha_codigo&gt;"];
+  n130 [label="&lt;instrucao&gt;"];
+  n131 [label="&lt;instrucao_memoria&gt;"];
+  n132 [label="&lt;op_memoria&gt;"];
+  n133 [label="INS_LW\nlw"];
+  n134 [label="REG\n$t1"];
+  n135 [label="SMB_COM\n,"];
+  n136 [label="&lt;endereco&gt;"];
+  n137 [label="NUM_INT\n-4"];
+  n138 [label="SMB_OPA\n("];
+  n139 [label="REG\n$fp"];
+  n140 [label="SMB_CPA\n)"];
+  n141 [label="EOL"];
+  n142 [label="&lt;linha_codigo&gt;"];
+  n143 [label="&lt;instrucao&gt;"];
+  n144 [label="&lt;instrucao_memoria&gt;"];
+  n145 [label="&lt;op_memoria&gt;"];
+  n146 [label="INS_SW\nsw"];
+  n147 [label="REG\n$t2"];
+  n148 [label="SMB_COM\n,"];
+  n149 [label="&lt;endereco&gt;"];
+  n150 [label="NUM_INT\n0x10"];
+  n151 [label="SMB_OPA\n("];
+  n152 [label="REG\n$gp"];
+  n153 [label="SMB_CPA\n)"];
+  n154 [label="EOL"];
+  n155 [label="&lt;linha_codigo&gt;"];
+  n156 [label="&lt;instrucao&gt;"];
+  n157 [label="&lt;instrucao_memoria&gt;"];
+  n158 [label="&lt;op_memoria&gt;"];
+  n159 [label="INS_LB\nlb"];
+  n160 [label="REG\n$8"];
+  n161 [label="SMB_COM\n,"];
+  n162 [label="&lt;endereco&gt;"];
+  n163 [label="NUM_INT\n3"];
+  n164 [label="SMB_OPA\n("];
+  n165 [label="REG\n$29"];
+  n166 [label="SMB_CPA\n)"];
+  n167 [label="EOL"];
+  n168 [label="&lt;linha_codigo&gt;"];
+  n169 [label="&lt;instrucao&gt;"];
+  n170 [label="&lt;instrucao_la&gt;"];
+  n171 [label="INS_LA\nla"];
+  n172 [label="REG\n$a0"];
+  n173 [label="SMB_COM\n,"];
+  n174 [label="ID\nvetor"];
+  n175 [label="EOL"];
+  n176 [label="&lt;linha_codigo&gt;"];
+  n177 [label="&lt;instrucao&gt;"];
+  n178 [label="&lt;instrucao_tres_registradores&gt;"];
+  n179 [label="&lt;op_tres_registradores&gt;"];
+  n180 [label="INS_ADD\nadd"];
+  n181 [label="REG\n$0"];
+  n182 [label="SMB_COM\n,"];
+  n183 [label="REG\n$31"];
+  n184 [label="SMB_COM\n,"];
+  n185 [label="REG\n$16"];
+  n186 [label="EOL"];
+  n187 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n9 -&gt; n12;
+  n12 -&gt; n13;
+  n12 -&gt; n14;
+  n12 -&gt; n15;
+  n12 -&gt; n16;
+  n12 -&gt; n17;
+  n12 -&gt; n18;
+  n12 -&gt; n19;
+  n5 -&gt; n20;
+  n0 -&gt; n21;
+  n21 -&gt; n22;
+  n22 -&gt; n23;
+  n22 -&gt; n24;
+  n22 -&gt; n25;
+  n25 -&gt; n26;
+  n26 -&gt; n27;
+  n27 -&gt; n28;
+  n27 -&gt; n29;
+  n27 -&gt; n30;
+  n27 -&gt; n31;
+  n25 -&gt; n32;
+  n22 -&gt; n33;
+  n33 -&gt; n34;
+  n34 -&gt; n35;
+  n35 -&gt; n36;
+  n35 -&gt; n37;
+  n35 -&gt; n38;
+  n35 -&gt; n39;
+  n33 -&gt; n40;
+  n22 -&gt; n41;
+  n41 -&gt; n42;
+  n42 -&gt; n43;
+  n43 -&gt; n44;
+  n43 -&gt; n45;
+  n43 -&gt; n46;
+  n43 -&gt; n47;
+  n41 -&gt; n48;
+  n22 -&gt; n49;
+  n49 -&gt; n50;
+  n50 -&gt; n51;
+  n51 -&gt; n52;
+  n51 -&gt; n53;
+  n51 -&gt; n54;
+  n51 -&gt; n55;
+  n49 -&gt; n56;
+  n22 -&gt; n57;
+  n57 -&gt; n58;
+  n58 -&gt; n59;
+  n59 -&gt; n60;
+  n59 -&gt; n61;
+  n59 -&gt; n62;
+  n59 -&gt; n63;
+  n57 -&gt; n64;
+  n22 -&gt; n65;
+  n65 -&gt; n66;
+  n66 -&gt; n67;
+  n67 -&gt; n68;
+  n67 -&gt; n69;
+  n67 -&gt; n70;
+  n67 -&gt; n71;
+  n67 -&gt; n72;
+  n67 -&gt; n73;
+  n65 -&gt; n74;
+  n22 -&gt; n75;
+  n75 -&gt; n76;
+  n76 -&gt; n77;
+  n77 -&gt; n78;
+  n77 -&gt; n79;
+  n77 -&gt; n80;
+  n77 -&gt; n81;
+  n77 -&gt; n82;
+  n77 -&gt; n83;
+  n75 -&gt; n84;
+  n22 -&gt; n85;
+  n85 -&gt; n86;
+  n86 -&gt; n87;
+  n87 -&gt; n88;
+  n88 -&gt; n89;
+  n87 -&gt; n90;
+  n87 -&gt; n91;
+  n87 -&gt; n92;
+  n87 -&gt; n93;
+  n87 -&gt; n94;
+  n85 -&gt; n95;
+  n22 -&gt; n96;
+  n96 -&gt; n97;
+  n97 -&gt; n98;
+  n98 -&gt; n99;
+  n99 -&gt; n100;
+  n98 -&gt; n101;
+  n98 -&gt; n102;
+  n98 -&gt; n103;
+  n103 -&gt; n104;
+  n96 -&gt; n105;
+  n22 -&gt; n106;
+  n106 -&gt; n107;
+  n107 -&gt; n108;
+  n108 -&gt; n109;
+  n109 -&gt; n110;
+  n108 -&gt; n111;
+  n108 -&gt; n112;
+  n108 -&gt; n113;
+  n113 -&gt; n114;
+  n106 -&gt; n115;
+  n22 -&gt; n116;
+  n116 -&gt; n117;
+  n117 -&gt; n118;
+  n118 -&gt; n119;
+  n119 -&gt; n120;
+  n118 -&gt; n121;
+  n118 -&gt; n122;
+  n118 -&gt; n123;
+  n123 -&gt; n124;
+  n123 -&gt; n125;
+  n123 -&gt; n126;
+  n123 -&gt; n127;
+  n116 -&gt; n128;
+  n22 -&gt; n129;
+  n129 -&gt; n130;
+  n130 -&gt; n131;
+  n131 -&gt; n132;
+  n132 -&gt; n133;
+  n131 -&gt; n134;
+  n131 -&gt; n135;
+  n131 -&gt; n136;
+  n136 -&gt; n137;
+  n136 -&gt; n138;
+  n136 -&gt; n139;
+  n136 -&gt; n140;
+  n129 -&gt; n141;
+  n22 -&gt; n142;
+  n142 -&gt; n143;
+  n143 -&gt; n144;
+  n144 -&gt; n145;
+  n145 -&gt; n146;
+  n144 -&gt; n147;
+  n144 -&gt; n148;
+  n144 -&gt; n149;
+  n149 -&gt; n150;
+  n149 -&gt; n151;
+  n149 -&gt; n152;
+  n149 -&gt; n153;
+  n142 -&gt; n154;
+  n22 -&gt; n155;
+  n155 -&gt; n156;
+  n156 -&gt; n157;
+  n157 -&gt; n158;
+  n158 -&gt; n159;
+  n157 -&gt; n160;
+  n157 -&gt; n161;
+  n157 -&gt; n162;
+  n162 -&gt; n163;
+  n162 -&gt; n164;
+  n162 -&gt; n165;
+  n162 -&gt; n166;
+  n155 -&gt; n167;
+  n22 -&gt; n168;
+  n168 -&gt; n169;
+  n169 -&gt; n170;
+  n170 -&gt; n171;
+  n170 -&gt; n172;
+  n170 -&gt; n173;
+  n170 -&gt; n174;
+  n168 -&gt; n175;
+  n22 -&gt; n176;
+  n176 -&gt; n177;
+  n177 -&gt; n178;
+  n178 -&gt; n179;
+  n179 -&gt; n180;
+  n178 -&gt; n181;
+  n178 -&gt; n182;
+  n178 -&gt; n183;
+  n178 -&gt; n184;
+  n178 -&gt; n185;
+  n176 -&gt; n186;
+  n0 -&gt; n187;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p3_valido_rotulo_e_instrucao.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_codigo&gt;"];
+  n3 [label="DIR_TEXT\n.text"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_codigo&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\ninicio"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;instrucao&gt;"];
+  n10 [label="&lt;instrucao_li&gt;"];
+  n11 [label="INS_LI\nli"];
+  n12 [label="REG\n$t0"];
+  n13 [label="SMB_COM\n,"];
+  n14 [label="NUM_INT\n10"];
+  n15 [label="EOL"];
+  n16 [label="&lt;linha_codigo&gt;"];
+  n17 [label="&lt;rotulo&gt;"];
+  n18 [label="ID\nloop"];
+  n19 [label="SMB_COL\n:"];
+  n20 [label="&lt;instrucao&gt;"];
+  n21 [label="&lt;instrucao_imediato&gt;"];
+  n22 [label="INS_ADDI\naddi"];
+  n23 [label="REG\n$t0"];
+  n24 [label="SMB_COM\n,"];
+  n25 [label="REG\n$t0"];
+  n26 [label="SMB_COM\n,"];
+  n27 [label="NUM_INT\n-1"];
+  n28 [label="EOL"];
+  n29 [label="&lt;linha_codigo&gt;"];
+  n30 [label="&lt;instrucao&gt;"];
+  n31 [label="&lt;instrucao_desvio&gt;"];
+  n32 [label="&lt;op_desvio&gt;"];
+  n33 [label="INS_BNE\nbne"];
+  n34 [label="REG\n$t0"];
+  n35 [label="SMB_COM\n,"];
+  n36 [label="REG\n$zero"];
+  n37 [label="SMB_COM\n,"];
+  n38 [label="ID\nloop"];
+  n39 [label="EOL"];
+  n40 [label="&lt;linha_codigo&gt;"];
+  n41 [label="&lt;instrucao&gt;"];
+  n42 [label="&lt;instrucao_desvio&gt;"];
+  n43 [label="&lt;op_desvio&gt;"];
+  n44 [label="INS_BEQ\nbeq"];
+  n45 [label="REG\n$t0"];
+  n46 [label="SMB_COM\n,"];
+  n47 [label="REG\n$zero"];
+  n48 [label="SMB_COM\n,"];
+  n49 [label="ID\ndepois"];
+  n50 [label="EOL"];
+  n51 [label="&lt;linha_codigo&gt;"];
+  n52 [label="&lt;instrucao&gt;"];
+  n53 [label="&lt;instrucao_salto&gt;"];
+  n54 [label="&lt;op_salto&gt;"];
+  n55 [label="INS_J\nj"];
+  n56 [label="ID\nrotulo_que_nao_existe"];
+  n57 [label="EOL"];
+  n58 [label="&lt;linha_codigo&gt;"];
+  n59 [label="&lt;rotulo&gt;"];
+  n60 [label="ID\ndepois"];
+  n61 [label="SMB_COL\n:"];
+  n62 [label="EOL"];
+  n63 [label="&lt;linha_codigo&gt;"];
+  n64 [label="&lt;instrucao&gt;"];
+  n65 [label="&lt;instrucao_salto&gt;"];
+  n66 [label="&lt;op_salto&gt;"];
+  n67 [label="INS_JAL\njal"];
+  n68 [label="ID\nfuncao"];
+  n69 [label="EOL"];
+  n70 [label="&lt;linha_codigo&gt;"];
+  n71 [label="&lt;rotulo&gt;"];
+  n72 [label="ID\nfuncao"];
+  n73 [label="SMB_COL\n:"];
+  n74 [label="&lt;instrucao&gt;"];
+  n75 [label="&lt;instrucao_um_registrador&gt;"];
+  n76 [label="&lt;op_um_registrador&gt;"];
+  n77 [label="INS_JR\njr"];
+  n78 [label="REG\n$ra"];
+  n79 [label="EOL"];
+  n80 [label="&lt;linha_codigo&gt;"];
+  n81 [label="&lt;rotulo&gt;"];
+  n82 [label="ID\nloop"];
+  n83 [label="SMB_COL\n:"];
+  n84 [label="&lt;instrucao&gt;"];
+  n85 [label="&lt;instrucao_sem_operandos&gt;"];
+  n86 [label="INS_NOP\nnop"];
+  n87 [label="EOL"];
+  n88 [label="&lt;linha_codigo&gt;"];
+  n89 [label="&lt;rotulo&gt;"];
+  n90 [label="ID\nfim"];
+  n91 [label="SMB_COL\n:"];
+  n92 [label="&lt;instrucao&gt;"];
+  n93 [label="&lt;instrucao_sem_operandos&gt;"];
+  n94 [label="INS_SYSCALL\nsyscall"];
+  n95 [label="EOL"];
+  n96 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n10 -&gt; n12;
+  n10 -&gt; n13;
+  n10 -&gt; n14;
+  n5 -&gt; n15;
+  n2 -&gt; n16;
+  n16 -&gt; n17;
+  n17 -&gt; n18;
+  n17 -&gt; n19;
+  n16 -&gt; n20;
+  n20 -&gt; n21;
+  n21 -&gt; n22;
+  n21 -&gt; n23;
+  n21 -&gt; n24;
+  n21 -&gt; n25;
+  n21 -&gt; n26;
+  n21 -&gt; n27;
+  n16 -&gt; n28;
+  n2 -&gt; n29;
+  n29 -&gt; n30;
+  n30 -&gt; n31;
+  n31 -&gt; n32;
+  n32 -&gt; n33;
+  n31 -&gt; n34;
+  n31 -&gt; n35;
+  n31 -&gt; n36;
+  n31 -&gt; n37;
+  n31 -&gt; n38;
+  n29 -&gt; n39;
+  n2 -&gt; n40;
+  n40 -&gt; n41;
+  n41 -&gt; n42;
+  n42 -&gt; n43;
+  n43 -&gt; n44;
+  n42 -&gt; n45;
+  n42 -&gt; n46;
+  n42 -&gt; n47;
+  n42 -&gt; n48;
+  n42 -&gt; n49;
+  n40 -&gt; n50;
+  n2 -&gt; n51;
+  n51 -&gt; n52;
+  n52 -&gt; n53;
+  n53 -&gt; n54;
+  n54 -&gt; n55;
+  n53 -&gt; n56;
+  n51 -&gt; n57;
+  n2 -&gt; n58;
+  n58 -&gt; n59;
+  n59 -&gt; n60;
+  n59 -&gt; n61;
+  n58 -&gt; n62;
+  n2 -&gt; n63;
+  n63 -&gt; n64;
+  n64 -&gt; n65;
+  n65 -&gt; n66;
+  n66 -&gt; n67;
+  n65 -&gt; n68;
+  n63 -&gt; n69;
+  n2 -&gt; n70;
+  n70 -&gt; n71;
+  n71 -&gt; n72;
+  n71 -&gt; n73;
+  n70 -&gt; n74;
+  n74 -&gt; n75;
+  n75 -&gt; n76;
+  n76 -&gt; n77;
+  n75 -&gt; n78;
+  n70 -&gt; n79;
+  n2 -&gt; n80;
+  n80 -&gt; n81;
+  n81 -&gt; n82;
+  n81 -&gt; n83;
+  n80 -&gt; n84;
+  n84 -&gt; n85;
+  n85 -&gt; n86;
+  n80 -&gt; n87;
+  n2 -&gt; n88;
+  n88 -&gt; n89;
+  n89 -&gt; n90;
+  n89 -&gt; n91;
+  n88 -&gt; n92;
+  n92 -&gt; n93;
+  n93 -&gt; n94;
+  n88 -&gt; n95;
+  n0 -&gt; n96;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>p3_valido_todas_instrucoes.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nnumero"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;diretiva_dados&gt;"];
+  n10 [label="&lt;diretiva_inteiros&gt;"];
+  n11 [label="DIR_WORD\n.word"];
+  n12 [label="&lt;lista_inteiros&gt;"];
+  n13 [label="NUM_INT\n10"];
+  n14 [label="EOL"];
+  n15 [label="&lt;linha_dados&gt;"];
+  n16 [label="&lt;rotulo&gt;"];
+  n17 [label="ID\nmsg"];
+  n18 [label="SMB_COL\n:"];
+  n19 [label="&lt;diretiva_dados&gt;"];
+  n20 [label="&lt;diretiva_string&gt;"];
+  n21 [label="DIR_ASCIIZ\n.asciiz"];
+  n22 [label="STRING\n\"ok\""];
+  n23 [label="EOL"];
+  n24 [label="&lt;secao&gt;"];
+  n25 [label="&lt;secao_codigo&gt;"];
+  n26 [label="DIR_TEXT\n.text"];
+  n27 [label="EOL"];
+  n28 [label="&lt;linha_codigo&gt;"];
+  n29 [label="&lt;rotulo&gt;"];
+  n30 [label="ID\nmain"];
+  n31 [label="SMB_COL\n:"];
+  n32 [label="EOL"];
+  n33 [label="&lt;linha_codigo&gt;"];
+  n34 [label="&lt;instrucao&gt;"];
+  n35 [label="&lt;instrucao_tres_registradores&gt;"];
+  n36 [label="&lt;op_tres_registradores&gt;"];
+  n37 [label="INS_ADD\nadd"];
+  n38 [label="REG\n$t0"];
+  n39 [label="SMB_COM\n,"];
+  n40 [label="REG\n$t1"];
+  n41 [label="SMB_COM\n,"];
+  n42 [label="REG\n$t2"];
+  n43 [label="EOL"];
+  n44 [label="&lt;linha_codigo&gt;"];
+  n45 [label="&lt;instrucao&gt;"];
+  n46 [label="&lt;instrucao_tres_registradores&gt;"];
+  n47 [label="&lt;op_tres_registradores&gt;"];
+  n48 [label="INS_ADDU\naddu"];
+  n49 [label="REG\n$t0"];
+  n50 [label="SMB_COM\n,"];
+  n51 [label="REG\n$t1"];
+  n52 [label="SMB_COM\n,"];
+  n53 [label="REG\n$t2"];
+  n54 [label="EOL"];
+  n55 [label="&lt;linha_codigo&gt;"];
+  n56 [label="&lt;instrucao&gt;"];
+  n57 [label="&lt;instrucao_tres_registradores&gt;"];
+  n58 [label="&lt;op_tres_registradores&gt;"];
+  n59 [label="INS_SUB\nsub"];
+  n60 [label="REG\n$t0"];
+  n61 [label="SMB_COM\n,"];
+  n62 [label="REG\n$t1"];
+  n63 [label="SMB_COM\n,"];
+  n64 [label="REG\n$t2"];
+  n65 [label="EOL"];
+  n66 [label="&lt;linha_codigo&gt;"];
+  n67 [label="&lt;instrucao&gt;"];
+  n68 [label="&lt;instrucao_tres_registradores&gt;"];
+  n69 [label="&lt;op_tres_registradores&gt;"];
+  n70 [label="INS_SUBU\nsubu"];
+  n71 [label="REG\n$t0"];
+  n72 [label="SMB_COM\n,"];
+  n73 [label="REG\n$t1"];
+  n74 [label="SMB_COM\n,"];
+  n75 [label="REG\n$t2"];
+  n76 [label="EOL"];
+  n77 [label="&lt;linha_codigo&gt;"];
+  n78 [label="&lt;instrucao&gt;"];
+  n79 [label="&lt;instrucao_tres_registradores&gt;"];
+  n80 [label="&lt;op_tres_registradores&gt;"];
+  n81 [label="INS_MUL\nmul"];
+  n82 [label="REG\n$t0"];
+  n83 [label="SMB_COM\n,"];
+  n84 [label="REG\n$t1"];
+  n85 [label="SMB_COM\n,"];
+  n86 [label="REG\n$t2"];
+  n87 [label="EOL"];
+  n88 [label="&lt;linha_codigo&gt;"];
+  n89 [label="&lt;instrucao&gt;"];
+  n90 [label="&lt;instrucao_tres_registradores&gt;"];
+  n91 [label="&lt;op_tres_registradores&gt;"];
+  n92 [label="INS_AND\nand"];
+  n93 [label="REG\n$t0"];
+  n94 [label="SMB_COM\n,"];
+  n95 [label="REG\n$t1"];
+  n96 [label="SMB_COM\n,"];
+  n97 [label="REG\n$t2"];
+  n98 [label="EOL"];
+  n99 [label="&lt;linha_codigo&gt;"];
+  n100 [label="&lt;instrucao&gt;"];
+  n101 [label="&lt;instrucao_tres_registradores&gt;"];
+  n102 [label="&lt;op_tres_registradores&gt;"];
+  n103 [label="INS_OR\nor"];
+  n104 [label="REG\n$t0"];
+  n105 [label="SMB_COM\n,"];
+  n106 [label="REG\n$t1"];
+  n107 [label="SMB_COM\n,"];
+  n108 [label="REG\n$t2"];
+  n109 [label="EOL"];
+  n110 [label="&lt;linha_codigo&gt;"];
+  n111 [label="&lt;instrucao&gt;"];
+  n112 [label="&lt;instrucao_tres_registradores&gt;"];
+  n113 [label="&lt;op_tres_registradores&gt;"];
+  n114 [label="INS_XOR\nxor"];
+  n115 [label="REG\n$t0"];
+  n116 [label="SMB_COM\n,"];
+  n117 [label="REG\n$t1"];
+  n118 [label="SMB_COM\n,"];
+  n119 [label="REG\n$t2"];
+  n120 [label="EOL"];
+  n121 [label="&lt;linha_codigo&gt;"];
+  n122 [label="&lt;instrucao&gt;"];
+  n123 [label="&lt;instrucao_tres_registradores&gt;"];
+  n124 [label="&lt;op_tres_registradores&gt;"];
+  n125 [label="INS_NOR\nnor"];
+  n126 [label="REG\n$t0"];
+  n127 [label="SMB_COM\n,"];
+  n128 [label="REG\n$t1"];
+  n129 [label="SMB_COM\n,"];
+  n130 [label="REG\n$t2"];
+  n131 [label="EOL"];
+  n132 [label="&lt;linha_codigo&gt;"];
+  n133 [label="&lt;instrucao&gt;"];
+  n134 [label="&lt;instrucao_tres_registradores&gt;"];
+  n135 [label="&lt;op_tres_registradores&gt;"];
+  n136 [label="INS_SLT\nslt"];
+  n137 [label="REG\n$t0"];
+  n138 [label="SMB_COM\n,"];
+  n139 [label="REG\n$t1"];
+  n140 [label="SMB_COM\n,"];
+  n141 [label="REG\n$t2"];
+  n142 [label="EOL"];
+  n143 [label="&lt;linha_codigo&gt;"];
+  n144 [label="&lt;instrucao&gt;"];
+  n145 [label="&lt;instrucao_dois_registradores&gt;"];
+  n146 [label="&lt;op_dois_registradores&gt;"];
+  n147 [label="INS_MOVE\nmove"];
+  n148 [label="REG\n$t0"];
+  n149 [label="SMB_COM\n,"];
+  n150 [label="REG\n$t1"];
+  n151 [label="EOL"];
+  n152 [label="&lt;linha_codigo&gt;"];
+  n153 [label="&lt;instrucao&gt;"];
+  n154 [label="&lt;instrucao_dois_registradores&gt;"];
+  n155 [label="&lt;op_dois_registradores&gt;"];
+  n156 [label="INS_DIV\ndiv"];
+  n157 [label="REG\n$t0"];
+  n158 [label="SMB_COM\n,"];
+  n159 [label="REG\n$t1"];
+  n160 [label="EOL"];
+  n161 [label="&lt;linha_codigo&gt;"];
+  n162 [label="&lt;instrucao&gt;"];
+  n163 [label="&lt;instrucao_um_registrador&gt;"];
+  n164 [label="&lt;op_um_registrador&gt;"];
+  n165 [label="INS_MFLO\nmflo"];
+  n166 [label="REG\n$t0"];
+  n167 [label="EOL"];
+  n168 [label="&lt;linha_codigo&gt;"];
+  n169 [label="&lt;instrucao&gt;"];
+  n170 [label="&lt;instrucao_um_registrador&gt;"];
+  n171 [label="&lt;op_um_registrador&gt;"];
+  n172 [label="INS_MFHI\nmfhi"];
+  n173 [label="REG\n$t1"];
+  n174 [label="EOL"];
+  n175 [label="&lt;linha_codigo&gt;"];
+  n176 [label="&lt;instrucao&gt;"];
+  n177 [label="&lt;instrucao_um_registrador&gt;"];
+  n178 [label="&lt;op_um_registrador&gt;"];
+  n179 [label="INS_JR\njr"];
+  n180 [label="REG\n$ra"];
+  n181 [label="EOL"];
+  n182 [label="&lt;linha_codigo&gt;"];
+  n183 [label="&lt;instrucao&gt;"];
+  n184 [label="&lt;instrucao_imediato&gt;"];
+  n185 [label="INS_ADDI\naddi"];
+  n186 [label="REG\n$t0"];
+  n187 [label="SMB_COM\n,"];
+  n188 [label="REG\n$t1"];
+  n189 [label="SMB_COM\n,"];
+  n190 [label="NUM_INT\n5"];
+  n191 [label="EOL"];
+  n192 [label="&lt;linha_codigo&gt;"];
+  n193 [label="&lt;instrucao&gt;"];
+  n194 [label="&lt;instrucao_deslocamento&gt;"];
+  n195 [label="&lt;op_deslocamento&gt;"];
+  n196 [label="INS_SLL\nsll"];
+  n197 [label="REG\n$t0"];
+  n198 [label="SMB_COM\n,"];
+  n199 [label="REG\n$t1"];
+  n200 [label="SMB_COM\n,"];
+  n201 [label="NUM_INT\n2"];
+  n202 [label="EOL"];
+  n203 [label="&lt;linha_codigo&gt;"];
+  n204 [label="&lt;instrucao&gt;"];
+  n205 [label="&lt;instrucao_deslocamento&gt;"];
+  n206 [label="&lt;op_deslocamento&gt;"];
+  n207 [label="INS_SRL\nsrl"];
+  n208 [label="REG\n$t0"];
+  n209 [label="SMB_COM\n,"];
+  n210 [label="REG\n$t1"];
+  n211 [label="SMB_COM\n,"];
+  n212 [label="NUM_INT\n2"];
+  n213 [label="EOL"];
+  n214 [label="&lt;linha_codigo&gt;"];
+  n215 [label="&lt;instrucao&gt;"];
+  n216 [label="&lt;instrucao_li&gt;"];
+  n217 [label="INS_LI\nli"];
+  n218 [label="REG\n$v0"];
+  n219 [label="SMB_COM\n,"];
+  n220 [label="NUM_INT\n4"];
+  n221 [label="EOL"];
+  n222 [label="&lt;linha_codigo&gt;"];
+  n223 [label="&lt;instrucao&gt;"];
+  n224 [label="&lt;instrucao_la&gt;"];
+  n225 [label="INS_LA\nla"];
+  n226 [label="REG\n$a0"];
+  n227 [label="SMB_COM\n,"];
+  n228 [label="ID\nmsg"];
+  n229 [label="EOL"];
+  n230 [label="&lt;linha_codigo&gt;"];
+  n231 [label="&lt;instrucao&gt;"];
+  n232 [label="&lt;instrucao_memoria&gt;"];
+  n233 [label="&lt;op_memoria&gt;"];
+  n234 [label="INS_LW\nlw"];
+  n235 [label="REG\n$t0"];
+  n236 [label="SMB_COM\n,"];
+  n237 [label="&lt;endereco&gt;"];
+  n238 [label="ID\nnumero"];
+  n239 [label="EOL"];
+  n240 [label="&lt;linha_codigo&gt;"];
+  n241 [label="&lt;instrucao&gt;"];
+  n242 [label="&lt;instrucao_memoria&gt;"];
+  n243 [label="&lt;op_memoria&gt;"];
+  n244 [label="INS_SW\nsw"];
+  n245 [label="REG\n$t0"];
+  n246 [label="SMB_COM\n,"];
+  n247 [label="&lt;endereco&gt;"];
+  n248 [label="NUM_INT\n0"];
+  n249 [label="SMB_OPA\n("];
+  n250 [label="REG\n$sp"];
+  n251 [label="SMB_CPA\n)"];
+  n252 [label="EOL"];
+  n253 [label="&lt;linha_codigo&gt;"];
+  n254 [label="&lt;instrucao&gt;"];
+  n255 [label="&lt;instrucao_memoria&gt;"];
+  n256 [label="&lt;op_memoria&gt;"];
+  n257 [label="INS_LB\nlb"];
+  n258 [label="REG\n$t0"];
+  n259 [label="SMB_COM\n,"];
+  n260 [label="&lt;endereco&gt;"];
+  n261 [label="NUM_INT\n1"];
+  n262 [label="SMB_OPA\n("];
+  n263 [label="REG\n$sp"];
+  n264 [label="SMB_CPA\n)"];
+  n265 [label="EOL"];
+  n266 [label="&lt;linha_codigo&gt;"];
+  n267 [label="&lt;instrucao&gt;"];
+  n268 [label="&lt;instrucao_memoria&gt;"];
+  n269 [label="&lt;op_memoria&gt;"];
+  n270 [label="INS_SB\nsb"];
+  n271 [label="REG\n$t0"];
+  n272 [label="SMB_COM\n,"];
+  n273 [label="&lt;endereco&gt;"];
+  n274 [label="NUM_INT\n2"];
+  n275 [label="SMB_OPA\n("];
+  n276 [label="REG\n$sp"];
+  n277 [label="SMB_CPA\n)"];
+  n278 [label="EOL"];
+  n279 [label="&lt;linha_codigo&gt;"];
+  n280 [label="&lt;instrucao&gt;"];
+  n281 [label="&lt;instrucao_memoria&gt;"];
+  n282 [label="&lt;op_memoria&gt;"];
+  n283 [label="INS_LH\nlh"];
+  n284 [label="REG\n$t0"];
+  n285 [label="SMB_COM\n,"];
+  n286 [label="&lt;endereco&gt;"];
+  n287 [label="NUM_INT\n4"];
+  n288 [label="SMB_OPA\n("];
+  n289 [label="REG\n$sp"];
+  n290 [label="SMB_CPA\n)"];
+  n291 [label="EOL"];
+  n292 [label="&lt;linha_codigo&gt;"];
+  n293 [label="&lt;instrucao&gt;"];
+  n294 [label="&lt;instrucao_memoria&gt;"];
+  n295 [label="&lt;op_memoria&gt;"];
+  n296 [label="INS_SH\nsh"];
+  n297 [label="REG\n$t0"];
+  n298 [label="SMB_COM\n,"];
+  n299 [label="&lt;endereco&gt;"];
+  n300 [label="NUM_INT\n6"];
+  n301 [label="SMB_OPA\n("];
+  n302 [label="REG\n$sp"];
+  n303 [label="SMB_CPA\n)"];
+  n304 [label="EOL"];
+  n305 [label="&lt;linha_codigo&gt;"];
+  n306 [label="&lt;instrucao&gt;"];
+  n307 [label="&lt;instrucao_desvio&gt;"];
+  n308 [label="&lt;op_desvio&gt;"];
+  n309 [label="INS_BEQ\nbeq"];
+  n310 [label="REG\n$t0"];
+  n311 [label="SMB_COM\n,"];
+  n312 [label="REG\n$t1"];
+  n313 [label="SMB_COM\n,"];
+  n314 [label="ID\nfim"];
+  n315 [label="EOL"];
+  n316 [label="&lt;linha_codigo&gt;"];
+  n317 [label="&lt;instrucao&gt;"];
+  n318 [label="&lt;instrucao_desvio&gt;"];
+  n319 [label="&lt;op_desvio&gt;"];
+  n320 [label="INS_BNE\nbne"];
+  n321 [label="REG\n$t0"];
+  n322 [label="SMB_COM\n,"];
+  n323 [label="REG\n$t1"];
+  n324 [label="SMB_COM\n,"];
+  n325 [label="ID\nfim"];
+  n326 [label="EOL"];
+  n327 [label="&lt;linha_codigo&gt;"];
+  n328 [label="&lt;instrucao&gt;"];
+  n329 [label="&lt;instrucao_desvio&gt;"];
+  n330 [label="&lt;op_desvio&gt;"];
+  n331 [label="INS_BLT\nblt"];
+  n332 [label="REG\n$t0"];
+  n333 [label="SMB_COM\n,"];
+  n334 [label="REG\n$t1"];
+  n335 [label="SMB_COM\n,"];
+  n336 [label="ID\nfim"];
+  n337 [label="EOL"];
+  n338 [label="&lt;linha_codigo&gt;"];
+  n339 [label="&lt;instrucao&gt;"];
+  n340 [label="&lt;instrucao_desvio&gt;"];
+  n341 [label="&lt;op_desvio&gt;"];
+  n342 [label="INS_BLE\nble"];
+  n343 [label="REG\n$t0"];
+  n344 [label="SMB_COM\n,"];
+  n345 [label="REG\n$t1"];
+  n346 [label="SMB_COM\n,"];
+  n347 [label="ID\nfim"];
+  n348 [label="EOL"];
+  n349 [label="&lt;linha_codigo&gt;"];
+  n350 [label="&lt;instrucao&gt;"];
+  n351 [label="&lt;instrucao_desvio&gt;"];
+  n352 [label="&lt;op_desvio&gt;"];
+  n353 [label="INS_BGT\nbgt"];
+  n354 [label="REG\n$t0"];
+  n355 [label="SMB_COM\n,"];
+  n356 [label="REG\n$t1"];
+  n357 [label="SMB_COM\n,"];
+  n358 [label="ID\nfim"];
+  n359 [label="EOL"];
+  n360 [label="&lt;linha_codigo&gt;"];
+  n361 [label="&lt;instrucao&gt;"];
+  n362 [label="&lt;instrucao_desvio&gt;"];
+  n363 [label="&lt;op_desvio&gt;"];
+  n364 [label="INS_BGE\nbge"];
+  n365 [label="REG\n$t0"];
+  n366 [label="SMB_COM\n,"];
+  n367 [label="REG\n$t1"];
+  n368 [label="SMB_COM\n,"];
+  n369 [label="ID\nfim"];
+  n370 [label="EOL"];
+  n371 [label="&lt;linha_codigo&gt;"];
+  n372 [label="&lt;instrucao&gt;"];
+  n373 [label="&lt;instrucao_salto&gt;"];
+  n374 [label="&lt;op_salto&gt;"];
+  n375 [label="INS_J\nj"];
+  n376 [label="ID\nfim"];
+  n377 [label="EOL"];
+  n378 [label="&lt;linha_codigo&gt;"];
+  n379 [label="&lt;instrucao&gt;"];
+  n380 [label="&lt;instrucao_salto&gt;"];
+  n381 [label="&lt;op_salto&gt;"];
+  n382 [label="INS_JAL\njal"];
+  n383 [label="ID\nfim"];
+  n384 [label="EOL"];
+  n385 [label="&lt;linha_codigo&gt;"];
+  n386 [label="&lt;instrucao&gt;"];
+  n387 [label="&lt;instrucao_sem_operandos&gt;"];
+  n388 [label="INS_NOP\nnop"];
+  n389 [label="EOL"];
+  n390 [label="&lt;linha_codigo&gt;"];
+  n391 [label="&lt;rotulo&gt;"];
+  n392 [label="ID\nfim"];
+  n393 [label="SMB_COL\n:"];
+  n394 [label="EOL"];
+  n395 [label="&lt;linha_codigo&gt;"];
+  n396 [label="&lt;instrucao&gt;"];
+  n397 [label="&lt;instrucao_sem_operandos&gt;"];
+  n398 [label="INS_SYSCALL\nsyscall"];
+  n399 [label="EOL"];
+  n400 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n9 -&gt; n12;
+  n12 -&gt; n13;
+  n5 -&gt; n14;
+  n2 -&gt; n15;
+  n15 -&gt; n16;
+  n16 -&gt; n17;
+  n16 -&gt; n18;
+  n15 -&gt; n19;
+  n19 -&gt; n20;
+  n20 -&gt; n21;
+  n19 -&gt; n22;
+  n15 -&gt; n23;
+  n0 -&gt; n24;
+  n24 -&gt; n25;
+  n25 -&gt; n26;
+  n25 -&gt; n27;
+  n25 -&gt; n28;
+  n28 -&gt; n29;
+  n29 -&gt; n30;
+  n29 -&gt; n31;
+  n28 -&gt; n32;
+  n25 -&gt; n33;
+  n33 -&gt; n34;
+  n34 -&gt; n35;
+  n35 -&gt; n36;
+  n36 -&gt; n37;
+  n35 -&gt; n38;
+  n35 -&gt; n39;
+  n35 -&gt; n40;
+  n35 -&gt; n41;
+  n35 -&gt; n42;
+  n33 -&gt; n43;
+  n25 -&gt; n44;
+  n44 -&gt; n45;
+  n45 -&gt; n46;
+  n46 -&gt; n47;
+  n47 -&gt; n48;
+  n46 -&gt; n49;
+  n46 -&gt; n50;
+  n46 -&gt; n51;
+  n46 -&gt; n52;
+  n46 -&gt; n53;
+  n44 -&gt; n54;
+  n25 -&gt; n55;
+  n55 -&gt; n56;
+  n56 -&gt; n57;
+  n57 -&gt; n58;
+  n58 -&gt; n59;
+  n57 -&gt; n60;
+  n57 -&gt; n61;
+  n57 -&gt; n62;
+  n57 -&gt; n63;
+  n57 -&gt; n64;
+  n55 -&gt; n65;
+  n25 -&gt; n66;
+  n66 -&gt; n67;
+  n67 -&gt; n68;
+  n68 -&gt; n69;
+  n69 -&gt; n70;
+  n68 -&gt; n71;
+  n68 -&gt; n72;
+  n68 -&gt; n73;
+  n68 -&gt; n74;
+  n68 -&gt; n75;
+  n66 -&gt; n76;
+  n25 -&gt; n77;
+  n77 -&gt; n78;
+  n78 -&gt; n79;
+  n79 -&gt; n80;
+  n80 -&gt; n81;
+  n79 -&gt; n82;
+  n79 -&gt; n83;
+  n79 -&gt; n84;
+  n79 -&gt; n85;
+  n79 -&gt; n86;
+  n77 -&gt; n87;
+  n25 -&gt; n88;
+  n88 -&gt; n89;
+  n89 -&gt; n90;
+  n90 -&gt; n91;
+  n91 -&gt; n92;
+  n90 -&gt; n93;
+  n90 -&gt; n94;
+  n90 -&gt; n95;
+  n90 -&gt; n96;
+  n90 -&gt; n97;
+  n88 -&gt; n98;
+  n25 -&gt; n99;
+  n99 -&gt; n100;
+  n100 -&gt; n101;
+  n101 -&gt; n102;
+  n102 -&gt; n103;
+  n101 -&gt; n104;
+  n101 -&gt; n105;
+  n101 -&gt; n106;
+  n101 -&gt; n107;
+  n101 -&gt; n108;
+  n99 -&gt; n109;
+  n25 -&gt; n110;
+  n110 -&gt; n111;
+  n111 -&gt; n112;
+  n112 -&gt; n113;
+  n113 -&gt; n114;
+  n112 -&gt; n115;
+  n112 -&gt; n116;
+  n112 -&gt; n117;
+  n112 -&gt; n118;
+  n112 -&gt; n119;
+  n110 -&gt; n120;
+  n25 -&gt; n121;
+  n121 -&gt; n122;
+  n122 -&gt; n123;
+  n123 -&gt; n124;
+  n124 -&gt; n125;
+  n123 -&gt; n126;
+  n123 -&gt; n127;
+  n123 -&gt; n128;
+  n123 -&gt; n129;
+  n123 -&gt; n130;
+  n121 -&gt; n131;
+  n25 -&gt; n132;
+  n132 -&gt; n133;
+  n133 -&gt; n134;
+  n134 -&gt; n135;
+  n135 -&gt; n136;
+  n134 -&gt; n137;
+  n134 -&gt; n138;
+  n134 -&gt; n139;
+  n134 -&gt; n140;
+  n134 -&gt; n141;
+  n132 -&gt; n142;
+  n25 -&gt; n143;
+  n143 -&gt; n144;
+  n144 -&gt; n145;
+  n145 -&gt; n146;
+  n146 -&gt; n147;
+  n145 -&gt; n148;
+  n145 -&gt; n149;
+  n145 -&gt; n150;
+  n143 -&gt; n151;
+  n25 -&gt; n152;
+  n152 -&gt; n153;
+  n153 -&gt; n154;
+  n154 -&gt; n155;
+  n155 -&gt; n156;
+  n154 -&gt; n157;
+  n154 -&gt; n158;
+  n154 -&gt; n159;
+  n152 -&gt; n160;
+  n25 -&gt; n161;
+  n161 -&gt; n162;
+  n162 -&gt; n163;
+  n163 -&gt; n164;
+  n164 -&gt; n165;
+  n163 -&gt; n166;
+  n161 -&gt; n167;
+  n25 -&gt; n168;
+  n168 -&gt; n169;
+  n169 -&gt; n170;
+  n170 -&gt; n171;
+  n171 -&gt; n172;
+  n170 -&gt; n173;
+  n168 -&gt; n174;
+  n25 -&gt; n175;
+  n175 -&gt; n176;
+  n176 -&gt; n177;
+  n177 -&gt; n178;
+  n178 -&gt; n179;
+  n177 -&gt; n180;
+  n175 -&gt; n181;
+  n25 -&gt; n182;
+  n182 -&gt; n183;
+  n183 -&gt; n184;
+  n184 -&gt; n185;
+  n184 -&gt; n186;
+  n184 -&gt; n187;
+  n184 -&gt; n188;
+  n184 -&gt; n189;
+  n184 -&gt; n190;
+  n182 -&gt; n191;
+  n25 -&gt; n192;
+  n192 -&gt; n193;
+  n193 -&gt; n194;
+  n194 -&gt; n195;
+  n195 -&gt; n196;
+  n194 -&gt; n197;
+  n194 -&gt; n198;
+  n194 -&gt; n199;
+  n194 -&gt; n200;
+  n194 -&gt; n201;
+  n192 -&gt; n202;
+  n25 -&gt; n203;
+  n203 -&gt; n204;
+  n204 -&gt; n205;
+  n205 -&gt; n206;
+  n206 -&gt; n207;
+  n205 -&gt; n208;
+  n205 -&gt; n209;
+  n205 -&gt; n210;
+  n205 -&gt; n211;
+  n205 -&gt; n212;
+  n203 -&gt; n213;
+  n25 -&gt; n214;
+  n214 -&gt; n215;
+  n215 -&gt; n216;
+  n216 -&gt; n217;
+  n216 -&gt; n218;
+  n216 -&gt; n219;
+  n216 -&gt; n220;
+  n214 -&gt; n221;
+  n25 -&gt; n222;
+  n222 -&gt; n223;
+  n223 -&gt; n224;
+  n224 -&gt; n225;
+  n224 -&gt; n226;
+  n224 -&gt; n227;
+  n224 -&gt; n228;
+  n222 -&gt; n229;
+  n25 -&gt; n230;
+  n230 -&gt; n231;
+  n231 -&gt; n232;
+  n232 -&gt; n233;
+  n233 -&gt; n234;
+  n232 -&gt; n235;
+  n232 -&gt; n236;
+  n232 -&gt; n237;
+  n237 -&gt; n238;
+  n230 -&gt; n239;
+  n25 -&gt; n240;
+  n240 -&gt; n241;
+  n241 -&gt; n242;
+  n242 -&gt; n243;
+  n243 -&gt; n244;
+  n242 -&gt; n245;
+  n242 -&gt; n246;
+  n242 -&gt; n247;
+  n247 -&gt; n248;
+  n247 -&gt; n249;
+  n247 -&gt; n250;
+  n247 -&gt; n251;
+  n240 -&gt; n252;
+  n25 -&gt; n253;
+  n253 -&gt; n254;
+  n254 -&gt; n255;
+  n255 -&gt; n256;
+  n256 -&gt; n257;
+  n255 -&gt; n258;
+  n255 -&gt; n259;
+  n255 -&gt; n260;
+  n260 -&gt; n261;
+  n260 -&gt; n262;
+  n260 -&gt; n263;
+  n260 -&gt; n264;
+  n253 -&gt; n265;
+  n25 -&gt; n266;
+  n266 -&gt; n267;
+  n267 -&gt; n268;
+  n268 -&gt; n269;
+  n269 -&gt; n270;
+  n268 -&gt; n271;
+  n268 -&gt; n272;
+  n268 -&gt; n273;
+  n273 -&gt; n274;
+  n273 -&gt; n275;
+  n273 -&gt; n276;
+  n273 -&gt; n277;
+  n266 -&gt; n278;
+  n25 -&gt; n279;
+  n279 -&gt; n280;
+  n280 -&gt; n281;
+  n281 -&gt; n282;
+  n282 -&gt; n283;
+  n281 -&gt; n284;
+  n281 -&gt; n285;
+  n281 -&gt; n286;
+  n286 -&gt; n287;
+  n286 -&gt; n288;
+  n286 -&gt; n289;
+  n286 -&gt; n290;
+  n279 -&gt; n291;
+  n25 -&gt; n292;
+  n292 -&gt; n293;
+  n293 -&gt; n294;
+  n294 -&gt; n295;
+  n295 -&gt; n296;
+  n294 -&gt; n297;
+  n294 -&gt; n298;
+  n294 -&gt; n299;
+  n299 -&gt; n300;
+  n299 -&gt; n301;
+  n299 -&gt; n302;
+  n299 -&gt; n303;
+  n292 -&gt; n304;
+  n25 -&gt; n305;
+  n305 -&gt; n306;
+  n306 -&gt; n307;
+  n307 -&gt; n308;
+  n308 -&gt; n309;
+  n307 -&gt; n310;
+  n307 -&gt; n311;
+  n307 -&gt; n312;
+  n307 -&gt; n313;
+  n307 -&gt; n314;
+  n305 -&gt; n315;
+  n25 -&gt; n316;
+  n316 -&gt; n317;
+  n317 -&gt; n318;
+  n318 -&gt; n319;
+  n319 -&gt; n320;
+  n318 -&gt; n321;
+  n318 -&gt; n322;
+  n318 -&gt; n323;
+  n318 -&gt; n324;
+  n318 -&gt; n325;
+  n316 -&gt; n326;
+  n25 -&gt; n327;
+  n327 -&gt; n328;
+  n328 -&gt; n329;
+  n329 -&gt; n330;
+  n330 -&gt; n331;
+  n329 -&gt; n332;
+  n329 -&gt; n333;
+  n329 -&gt; n334;
+  n329 -&gt; n335;
+  n329 -&gt; n336;
+  n327 -&gt; n337;
+  n25 -&gt; n338;
+  n338 -&gt; n339;
+  n339 -&gt; n340;
+  n340 -&gt; n341;
+  n341 -&gt; n342;
+  n340 -&gt; n343;
+  n340 -&gt; n344;
+  n340 -&gt; n345;
+  n340 -&gt; n346;
+  n340 -&gt; n347;
+  n338 -&gt; n348;
+  n25 -&gt; n349;
+  n349 -&gt; n350;
+  n350 -&gt; n351;
+  n351 -&gt; n352;
+  n352 -&gt; n353;
+  n351 -&gt; n354;
+  n351 -&gt; n355;
+  n351 -&gt; n356;
+  n351 -&gt; n357;
+  n351 -&gt; n358;
+  n349 -&gt; n359;
+  n25 -&gt; n360;
+  n360 -&gt; n361;
+  n361 -&gt; n362;
+  n362 -&gt; n363;
+  n363 -&gt; n364;
+  n362 -&gt; n365;
+  n362 -&gt; n366;
+  n362 -&gt; n367;
+  n362 -&gt; n368;
+  n362 -&gt; n369;
+  n360 -&gt; n370;
+  n25 -&gt; n371;
+  n371 -&gt; n372;
+  n372 -&gt; n373;
+  n373 -&gt; n374;
+  n374 -&gt; n375;
+  n373 -&gt; n376;
+  n371 -&gt; n377;
+  n25 -&gt; n378;
+  n378 -&gt; n379;
+  n379 -&gt; n380;
+  n380 -&gt; n381;
+  n381 -&gt; n382;
+  n380 -&gt; n383;
+  n378 -&gt; n384;
+  n25 -&gt; n385;
+  n385 -&gt; n386;
+  n386 -&gt; n387;
+  n387 -&gt; n388;
+  n385 -&gt; n389;
+  n25 -&gt; n390;
+  n390 -&gt; n391;
+  n391 -&gt; n392;
+  n391 -&gt; n393;
+  n390 -&gt; n394;
+  n25 -&gt; n395;
+  n395 -&gt; n396;
+  n396 -&gt; n397;
+  n397 -&gt; n398;
+  n395 -&gt; n399;
+  n0 -&gt; n400;
+}</pre>
+    </article>
+    <article class="caso dot">
+      <h3><code>teste_escape_dot.dot</code></h3>
+      <pre class="mini">digraph ArvoreSintatica {
+  graph [ordering=out];
+  node [shape=box];
+  edge [arrowhead=none];
+  n0 [label="&lt;programa&gt;"];
+  n1 [label="&lt;secao&gt;"];
+  n2 [label="&lt;secao_dados&gt;"];
+  n3 [label="DIR_DATA\n.data"];
+  n4 [label="EOL"];
+  n5 [label="&lt;linha_dados&gt;"];
+  n6 [label="&lt;rotulo&gt;"];
+  n7 [label="ID\nmsg_aspas"];
+  n8 [label="SMB_COL\n:"];
+  n9 [label="&lt;diretiva_dados&gt;"];
+  n10 [label="&lt;diretiva_string&gt;"];
+  n11 [label="DIR_ASCIIZ\n.asciiz"];
+  n12 [label="STRING\n\"Texto com \\\"aspas\\\" internas\""];
+  n13 [label="EOL"];
+  n14 [label="&lt;linha_dados&gt;"];
+  n15 [label="&lt;rotulo&gt;"];
+  n16 [label="ID\nmsg_barra"];
+  n17 [label="SMB_COL\n:"];
+  n18 [label="&lt;diretiva_dados&gt;"];
+  n19 [label="&lt;diretiva_string&gt;"];
+  n20 [label="DIR_ASCIIZ\n.asciiz"];
+  n21 [label="STRING\n\"C:\\\\pasta\\\\arquivo.asm\""];
+  n22 [label="EOL"];
+  n23 [label="&lt;secao&gt;"];
+  n24 [label="&lt;secao_codigo&gt;"];
+  n25 [label="DIR_TEXT\n.text"];
+  n26 [label="EOL"];
+  n27 [label="&lt;linha_codigo&gt;"];
+  n28 [label="&lt;rotulo&gt;"];
+  n29 [label="ID\ninicio"];
+  n30 [label="SMB_COL\n:"];
+  n31 [label="EOL"];
+  n32 [label="&lt;linha_codigo&gt;"];
+  n33 [label="&lt;instrucao&gt;"];
+  n34 [label="&lt;instrucao_la&gt;"];
+  n35 [label="INS_LA\nla"];
+  n36 [label="REG\n$a0"];
+  n37 [label="SMB_COM\n,"];
+  n38 [label="ID\nmsg_aspas"];
+  n39 [label="EOL"];
+  n40 [label="&lt;linha_codigo&gt;"];
+  n41 [label="&lt;instrucao&gt;"];
+  n42 [label="&lt;instrucao_li&gt;"];
+  n43 [label="INS_LI\nli"];
+  n44 [label="REG\n$v0"];
+  n45 [label="SMB_COM\n,"];
+  n46 [label="NUM_INT\n4"];
+  n47 [label="EOL"];
+  n48 [label="&lt;linha_codigo&gt;"];
+  n49 [label="&lt;instrucao&gt;"];
+  n50 [label="&lt;instrucao_sem_operandos&gt;"];
+  n51 [label="INS_SYSCALL\nsyscall"];
+  n52 [label="EOL"];
+  n53 [label="&lt;linha_codigo&gt;"];
+  n54 [label="&lt;rotulo&gt;"];
+  n55 [label="ID\ninicio"];
+  n56 [label="SMB_COL\n:"];
+  n57 [label="EOL"];
+  n58 [label="&lt;linha_codigo&gt;"];
+  n59 [label="&lt;instrucao&gt;"];
+  n60 [label="&lt;instrucao_salto&gt;"];
+  n61 [label="&lt;op_salto&gt;"];
+  n62 [label="INS_J\nj"];
+  n63 [label="ID\nrotulo_inexistente"];
+  n64 [label="EOL"];
+  n65 [label="TK_EOF"];
+  n0 -&gt; n1;
+  n1 -&gt; n2;
+  n2 -&gt; n3;
+  n2 -&gt; n4;
+  n2 -&gt; n5;
+  n5 -&gt; n6;
+  n6 -&gt; n7;
+  n6 -&gt; n8;
+  n5 -&gt; n9;
+  n9 -&gt; n10;
+  n10 -&gt; n11;
+  n9 -&gt; n12;
+  n5 -&gt; n13;
+  n2 -&gt; n14;
+  n14 -&gt; n15;
+  n15 -&gt; n16;
+  n15 -&gt; n17;
+  n14 -&gt; n18;
+  n18 -&gt; n19;
+  n19 -&gt; n20;
+  n18 -&gt; n21;
+  n14 -&gt; n22;
+  n0 -&gt; n23;
+  n23 -&gt; n24;
+  n24 -&gt; n25;
+  n24 -&gt; n26;
+  n24 -&gt; n27;
+  n27 -&gt; n28;
+  n28 -&gt; n29;
+  n28 -&gt; n30;
+  n27 -&gt; n31;
+  n24 -&gt; n32;
+  n32 -&gt; n33;
+  n33 -&gt; n34;
+  n34 -&gt; n35;
+  n34 -&gt; n36;
+  n34 -&gt; n37;
+  n34 -&gt; n38;
+  n32 -&gt; n39;
+  n24 -&gt; n40;
+  n40 -&gt; n41;
+  n41 -&gt; n42;
+  n42 -&gt; n43;
+  n42 -&gt; n44;
+  n42 -&gt; n45;
+  n42 -&gt; n46;
+  n40 -&gt; n47;
+  n24 -&gt; n48;
+  n48 -&gt; n49;
+  n49 -&gt; n50;
+  n50 -&gt; n51;
+  n48 -&gt; n52;
+  n24 -&gt; n53;
+  n53 -&gt; n54;
+  n54 -&gt; n55;
+  n54 -&gt; n56;
+  n53 -&gt; n57;
+  n24 -&gt; n58;
+  n58 -&gt; n59;
+  n59 -&gt; n60;
+  n60 -&gt; n61;
+  n61 -&gt; n62;
+  n60 -&gt; n63;
+  n58 -&gt; n64;
+  n0 -&gt; n65;
+}</pre>
+    </article></div>
+
+</main>
+</body>
+</html>
