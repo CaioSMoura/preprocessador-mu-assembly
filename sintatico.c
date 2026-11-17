@@ -231,7 +231,7 @@ int AnaliseSintatica(FILE *tokens, FILE *arvore, FILE *erros){
 }
 
 
-/* ===== Pessoa 4: erros, recuperacao e arvore ===== */
+/* ===== Erros, recuperacao e arvore ===== */
 
 No *noInterno(Parser *p, const char *nome){
     No *n = calloc(1, sizeof(No));
@@ -363,8 +363,6 @@ void gravarDot(FILE *out, No *raiz){
     fprintf(out, "}\n");
 }
 
-/* ===== Pessoa 2: programa, secoes, rotulos e diretivas ===== */
-
 /* Categorias do léxico usadas neste bloco.
    Se o .lex usar outro nome, é só ajustar aqui. */
 #define CAT_DIR_DATA    "DIR_DATA"
@@ -385,7 +383,7 @@ void gravarDot(FILE *out, No *raiz){
 #define CAT_EOL         "EOL"
 #define CAT_EOF         "TK_EOF"
 
-/* ---------- auxiliares (só deste bloco) ---------- */
+/* ---------- auxiliares ---------- */
 
 /* Anexa o filho se ele existir. Devolve 1 se anexou, 0 se filho era NULL. */
 static int anexar(No *pai, No *filho) {
@@ -519,8 +517,7 @@ erro:
     return NULL;
 }
 
-/* <linha_codigo> ::= [<rotulo>] [<diretiva_global> | <instrucao>] EOL
-   A instrução (Pessoa 3) termina ANTES do EOL; quem consome o EOL é esta função. */
+/* <linha_codigo> ::= [<rotulo>] [<diretiva_global> | <instrucao>] EOL */
 No *linha_codigo(Parser *p) {
     No *n = noInterno(p, "<linha_codigo>");
     int temRotulo = 0;
@@ -604,9 +601,7 @@ No *programa(Parser *p) {
     anexar(raiz, esperar(p, CAT_EOF, "TK_EOF"));
     return raiz;
 }
-/* ===== fim do bloco da Pessoa 2 ===== */
 
-/* ===== Pessoa 3(VERSAO PROVISORIA): instrucoes ===== */
 
 #define CAT_REG    "REG"
 #define CAT_ABRE   "SMB_OPA"
@@ -867,4 +862,3 @@ No *instrucao(Parser *p){
     if (!anexar(n, f)) return falha(n);
     return n;
 }
-/* ===== fim do bloco da Pessoa 3 ===== */
